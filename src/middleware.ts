@@ -41,9 +41,8 @@ export async function middleware(request: NextRequest) {
 
   const publicPaths = ['/login', '/signup'];
   const isPublicPath = publicPaths.includes(request.nextUrl.pathname);
-  const isApiPath = request.nextUrl.pathname.startsWith('/api');
 
-  if (!user && !isPublicPath && !isApiPath) {
+  if (!user && !isPublicPath) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = '/login';
     return redirectWithCookies(redirectUrl, supabaseResponse);
@@ -72,6 +71,6 @@ function redirectWithCookies(url: URL, supabaseResponse: NextResponse): NextResp
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 };

@@ -1,6 +1,11 @@
 import { NextResponse } from 'next/server';
 import { getSeasonDetails } from '@/lib/tmdb/client';
-import { isNumericParam, requireAuthError, tmdbErrorResponse } from '@/lib/tmdb/route-auth';
+import {
+  isNumericParam,
+  isSeasonNumberParam,
+  requireAuthError,
+  tmdbErrorResponse,
+} from '@/lib/tmdb/route-auth';
 
 export async function GET(
   _request: Request,
@@ -11,7 +16,7 @@ export async function GET(
 
   const { id, n } = await params;
 
-  if (!isNumericParam(id) || !isNumericParam(n)) {
+  if (!isNumericParam(id) || !isSeasonNumberParam(n)) {
     return NextResponse.json({ error: 'Invalid series id or season number' }, { status: 400 });
   }
 

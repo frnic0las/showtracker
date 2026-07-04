@@ -1,5 +1,6 @@
 import { requireEnv } from '@/lib/env';
 import type {
+  TmdbErrorResponse,
   TmdbMovieDetails,
   TmdbSearchResponse,
   TmdbSeasonDetails,
@@ -17,8 +18,8 @@ const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
 export class TmdbApiError extends Error {
   readonly status: number;
 
-  constructor(message: string, status: number) {
-    super(message);
+  constructor(message: string, status: number, options?: ErrorOptions) {
+    super(message, options);
     this.name = 'TmdbApiError';
     this.status = status;
   }
@@ -43,23 +44,40 @@ export async function tmdbFetch<T>(
   let response: Response;
   try {
     response = await fetch(url.toString());
-  } catch {
-    throw new TmdbApiError('Failed to reach TMDB API', 0);
+  } catch (error) {
+    throw new TmdbApiError('Failed to reach TMDB API', 0, { cause: error });
   }
 
   if (!response.ok) {
-    throw new TmdbApiError(`TMDB request failed with status ${response.status}`, response.status);
+    throw new TmdbApiError(await tmdbErrorMessage(response), response.status);
   }
 
   return (await response.json()) as T;
 }
 
-/** Searches TMDB for TV series or movies matching `query`. */
+/**
+ * Extracts TMDB's own `status_message` from an error response body, falling
+ * back to a generic message when the body is missing or not the expected shape.
+ */
+async function tmdbErrorMessage(response: Response): Promise<string> {
+  try {
+    const body = (await response.json()) as TmdbErrorResponse;
+    if (typeof body.status_message === 'string' && body.status_message.length > 0) {
+      return body.status_message;
+    }
+  } catch {
+    // Non-JSON or empty body — fall through to the generic message.
+  }
+  return `TMDB request failed with status ${response.status}`;
+}
+
+/** Searches TMDB for TV series or movies matching `query` on the given page. */
 export async function searchTmdb(
   type: 'tv' | 'movie',
   query: string,
+  page = '1',
 ): Promise<TmdbSearchResponse> {
-  return tmdbFetch<TmdbSearchResponse>(`/search/${type}`, { query });
+  return tmdbFetch<TmdbSearchResponse>(`/search/${type}`, { query, page });
 }
 
 /** Fetches series details (including the seasons overview) for a TV show. */

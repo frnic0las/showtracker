@@ -20,12 +20,20 @@ export async function requireAuthError(): Promise<NextResponse | null> {
 }
 
 /**
- * Returns `true` when `value` is a positive integer id. TMDB resource ids and
- * season numbers are always numeric, so route params that fail this check are
- * rejected with a 400 rather than forwarded to TMDB.
+ * Returns `true` when `value` is a positive integer (>= 1, no leading zero).
+ * TMDB resource ids and page numbers are always >= 1, so route params that fail
+ * this check are rejected with a 400 rather than forwarded to TMDB.
  */
 export function isNumericParam(value: string): boolean {
-  return /^\d+$/.test(value);
+  return /^[1-9]\d*$/.test(value);
+}
+
+/**
+ * Returns `true` when `value` is a valid TMDB season number: a non-negative
+ * integer (>= 0, no leading zero). Season 0 is the "Specials" season.
+ */
+export function isSeasonNumberParam(value: string): boolean {
+  return /^(0|[1-9]\d*)$/.test(value);
 }
 
 /**
