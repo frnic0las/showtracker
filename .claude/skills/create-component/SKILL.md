@@ -1,35 +1,33 @@
 ---
 name: create-component
-description: Scaffold a new React component with proper structure, types, and Tailwind styling. Use when creating any new UI component.
+description: Scaffold a new React component following the design system and project conventions.
+disable-model-invocation: true
 ---
 
-## Steps
+Create a new React component for: $ARGUMENTS
 
-1. Read `docs/DESIGN_SYSTEM.md` to load current tokens and patterns
-2. Determine if this is a Server or Client component
-3. Create the component file in the appropriate directory:
-   - `src/components/ui/` for generic UI (Button, Modal, Sheet, etc.)
+1. Read `docs/DESIGN_SYSTEM.md` to understand the visual conventions
+2. Determine if this is a page component (`src/app/`) or a reusable component (`src/components/`)
+3. Check existing components for similar patterns: `ls src/components/`
+4. Create the component file in PascalCase: `<ComponentName>.tsx`
+5. Follow these conventions:
+   - Tailwind CSS utility classes only — no inline styles, no CSS Modules
+   - Use design system tokens from `tailwind.config.ts` — never hardcode colors or spacing
+   - TypeScript strict: define props interface, no `any` types
+   - Server Component by default — add `'use client'` only if hooks or event handlers are needed
+   - Include loading state, error state, and empty state handling
+   - Use Server Actions (`src/actions/`) for mutations, not direct Supabase calls from components
+   - Use `next/image` for images, `next/link` for navigation
+6. Place the component in the correct directory:
+   - `src/components/ui/` for generic UI (Button, Modal, Sheet, SearchBar)
    - `src/components/series/` for series-specific components
    - `src/components/movies/` for movie-specific components
    - `src/components/calendar/` for calendar-specific components
-4. Define the component's props interface in the same file (or `src/types/` if shared)
-5. Implement the component with Tailwind classes matching the design system
-6. Add `'use client'` directive ONLY if the component uses hooks, event handlers, or browser APIs
-7. Handle loading, error, and empty states if the component displays data
-8. Verify touch targets are ≥ 44px for interactive elements
-9. Test dark/light mode appearance
-
-## Template
-
-```tsx
-// src/components/{domain}/{ComponentName}.tsx
-interface {ComponentName}Props {
-  // Define props
-}
-
-export function {ComponentName}({ ...props }: {ComponentName}Props) {
-  return (
-    // Use Tailwind classes from design system
-  )
-}
-```
+7. If the component needs data:
+   - Server Component: fetch directly with Supabase server client
+   - Client Component: receive data via props from a parent Server Component
+8. Ensure touch targets are ≥ 44px for interactive elements
+9. Verify dark/light mode works via `prefers-color-scheme`
+10. Run checks:
+    - `pnpm typecheck`
+    - `pnpm lint`

@@ -1,40 +1,47 @@
 ---
 name: pr-ready
-description: Pre-merge checklist to verify a branch is ready for PR. Use before opening or approving a pull request.
+description: Pre-merge checklist to verify a branch is ready for PR. Runs all checks and validates conventions.
+disable-model-invocation: true
 ---
 
-## Checklist
+Verify the current branch is ready for a pull request.
 
-### Code Quality
+## 1. Run all checks
 
-- [ ] `pnpm typecheck` passes with no errors
-- [ ] `pnpm lint` passes with no warnings
-- [ ] `pnpm build` succeeds
-- [ ] `pnpm test` — all tests pass
+```
+pnpm typecheck
+pnpm lint
+pnpm build
+pnpm test
+```
 
-### Architecture
+Fix any failures before proceeding.
+
+## 2. Architecture review
 
 - [ ] Server Components used by default, `'use client'` only where needed
-- [ ] No business logic in Route Handlers — extracted to lib functions
-- [ ] Supabase errors handled (`const { data, error } = ...`)
+- [ ] No business logic in Route Handlers — extracted to `src/lib/` functions
+- [ ] Supabase errors handled: `const { data, error } = ...` with error check
 - [ ] RLS policies exist for any new tables
+- [ ] Types defined in `src/types/`, no `any`
 
-### Security
+## 3. Security review
 
-- [ ] No server env vars exposed to client (`TMDB_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`)
+- [ ] No server env vars in client code (`TMDB_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`)
 - [ ] User input validated before use
-- [ ] RLS policies tested (user A cannot see user B's data)
+- [ ] RLS policies tested (user A cannot see user B data)
 
-### Design System
+## 4. Design system review
 
 - [ ] UI matches `docs/DESIGN_SYSTEM.md`
 - [ ] Dark/light mode works
 - [ ] Touch targets ≥ 44px
 - [ ] No hardcoded colors/spacing — Tailwind tokens only
+- [ ] Mobile viewport only (375–430px)
 
-### Git Hygiene
+## 5. Git hygiene
 
 - [ ] Branch named correctly: `feature/<issue>-desc` or `fix/<issue>-desc`
 - [ ] Commits follow convention: `feat(scope): description`
-- [ ] No unrelated changes in the diff
+- [ ] No unrelated changes in the diff: `git diff main --stat`
 - [ ] PR description references the issue: `Closes #<number>`

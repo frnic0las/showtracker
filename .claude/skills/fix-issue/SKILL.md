@@ -1,20 +1,65 @@
 ---
 name: fix-issue
-description: Structured workflow for fixing a GitHub issue. Use when starting work on any issue.
+description: Fix a GitHub issue end-to-end. Reads the issue, routes to the correct agent via labels, implements the fix, writes tests, and opens a PR.
+disable-model-invocation: true
 ---
 
-## Steps
+Fix the GitHub issue: $ARGUMENTS
 
-1. **Read the issue**: Understand the requirements, acceptance criteria, and scope
-2. **Create a branch**: `git checkout -b fix/<issue-number>-short-description`
-3. **Locate relevant code**: Use Grep/Glob to find related files
-4. **Reproduce the bug** (if it's a bug): Understand the current behavior
-5. **Write a failing test** (if applicable): Prove the bug exists
-6. **Implement the fix**: Minimum changes needed
-7. **Verify**:
-   - `pnpm typecheck` passes
-   - `pnpm lint` passes
-   - `pnpm test` passes
-   - Manual verification matches acceptance criteria
-8. **Commit**: `fix(scope): description (closes #<issue-number>)`
-9. **Self-review**: Re-read the diff — does every changed line trace to the issue?
+## 1. Read the issue
+
+Run `gh issue view $ARGUMENTS --json title,body,labels` to get the full issue details, acceptance criteria, and labels.
+
+## 2. Determine the agent via labels
+
+Read the labels array and look for an `agent-*` label:
+
+- `agent-backend` → use the **backend-dev** agent
+- `agent-frontend` → use the **frontend-dev** agent
+- `agent-designer` → use the **ui-designer** agent
+
+**If no `agent-*` label is found, STOP and ask the user which agent to use.** Do not guess from the issue content. Example prompt:
+> This issue has no agent label. Which agent should handle it?
+> 1. backend-dev
+> 2. frontend-dev
+> 3. ui-designer
+
+## 3. Create a feature branch
+
+```
+git checkout -b feature/$ARGUMENTS-<short-description>
+```
+
+## 4. Execute with the routed agent
+
+### If backend-dev or frontend-dev:
+
+1. Read existing related code to understand current patterns
+2. If frontend: check `docs/DESIGN_SYSTEM.md` first, then check for mockups in `docs/mockups/issue-$ARGUMENTS/`
+3. Implement the changes following CLAUDE.md conventions
+4. Write tests using the test-writer agent
+5. Run the full verification suite and fix any failures:
+   - `pnpm typecheck`
+   - `pnpm lint`
+   - `pnpm test`
+
+### If ui-designer:
+
+1. Read `docs/DESIGN_SYSTEM.md` before starting
+2. Produce HTML/CSS mockups in `docs/mockups/issue-$ARGUMENTS/`
+3. Include a `README.md` with component mapping and Tailwind classes
+4. No tests or linting required for design artifacts
+
+## 5. Commit and open a PR
+
+```
+git add -A
+git commit -m "<type>(<scope>): <description> (closes #$ARGUMENTS)"
+git push -u origin feature/$ARGUMENTS-<short-description>
+gh pr create --title "<description>" --body "Closes #$ARGUMENTS"
+```
+
+Commit type conventions:
+- `feat(<scope>)` for new features
+- `fix(<scope>)` for bug fixes
+- `docs(design)` for mockups and design artifacts

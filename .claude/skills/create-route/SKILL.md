@@ -1,48 +1,38 @@
 ---
 name: create-route
-description: Scaffold a new API Route Handler or page route with proper structure. Use when adding new endpoints or pages.
+description: Scaffold a new Route Handler or Server Action with types, validation, and tests.
+disable-model-invocation: true
 ---
 
-## For Route Handlers (API)
+Create a new API route or Server Action for: $ARGUMENTS
 
-1. Create the route file: `src/app/api/{domain}/route.ts`
-2. Import and use `createServerClient` from `src/lib/supabase/server`
-3. Validate input parameters (query params or request body)
-4. Implement the handler function (GET, POST, PUT, DELETE)
-5. Return typed JSON with `NextResponse.json()`
-6. Handle errors with appropriate HTTP status codes
-7. Add the route to `docs/ARCHITECTURE.md` if it's a new domain
+## If Route Handler (GET/proxy endpoint):
 
-### Template
+1. Identify the resource and HTTP methods needed
+2. Create or update TypeScript interfaces in `src/types/<resource>.ts`
+3. Create the Route Handler in `src/app/api/<resource>/route.ts`:
+   - Import `createServerClient` from `src/lib/supabase/server`
+   - Validate query params or request body
+   - Check authentication (Supabase session)
+   - Return typed JSON with `NextResponse.json()`
+   - Handle errors with appropriate HTTP status codes
+4. If it calls TMDB: use `src/lib/tmdb/client.ts`, cache the response in Supabase
+5. Write tests in `src/app/api/<resource>/route.test.ts`
+6. Run checks:
+   - `pnpm typecheck`
+   - `pnpm lint`
+   - `pnpm test`
 
-```ts
-// src/app/api/{domain}/route.ts
-import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase/server'
+## If Server Action (mutation):
 
-export async function GET(request: NextRequest) {
-  const supabase = await createServerClient()
-  // Validate, query, return
-  return NextResponse.json({ data })
-}
-```
-
-## For Page Routes
-
-1. Create the page: `src/app/(app)/{path}/page.tsx`
-2. Pages are Server Components by default — fetch data directly
-3. Use Supabase server client for authenticated data
-4. Pass data to client components via props
-5. Include loading.tsx and error.tsx siblings if needed
-
-### Template
-
-```tsx
-// src/app/(app)/{path}/page.tsx
-import { createServerClient } from '@/lib/supabase/server'
-
-export default async function {PageName}Page() {
-  const supabase = await createServerClient()
-  // Fetch data, render
-}
-```
+1. Create or update the action file in `src/actions/<resource>.ts`
+2. Add `'use server'` directive at the top
+3. Validate inputs
+4. Use `createServerClient` for Supabase queries
+5. Call `revalidatePath()` after mutations
+6. Return typed result (not void — the client needs feedback)
+7. Write tests
+8. Run checks:
+   - `pnpm typecheck`
+   - `pnpm lint`
+   - `pnpm test`
