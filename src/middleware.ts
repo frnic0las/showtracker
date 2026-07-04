@@ -35,9 +35,38 @@ export async function middleware(request: NextRequest) {
 
   // Refreshes the auth session if expired. Required for Server Components,
   // which cannot set cookies themselves.
-  await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const publicPaths = ['/login', '/signup'];
+  const isPublicPath = publicPaths.includes(request.nextUrl.pathname);
+
+  if (!user && !isPublicPath) {
+    const redirectUrl = request.nextUrl.clone();
+    redirectUrl.pathname = '/login';
+    return redirectWithCookies(redirectUrl, supabaseResponse);
+  }
+
+  if (user && isPublicPath) {
+    const redirectUrl = request.nextUrl.clone();
+    redirectUrl.pathname = '/series';
+    return redirectWithCookies(redirectUrl, supabaseResponse);
+  }
 
   return supabaseResponse;
+}
+
+/**
+ * Builds a redirect response while preserving the refreshed session cookies
+ * that were set on `supabaseResponse`.
+ */
+function redirectWithCookies(url: URL, supabaseResponse: NextResponse): NextResponse {
+  const redirectResponse = NextResponse.redirect(url);
+  supabaseResponse.cookies.getAll().forEach((cookie) => {
+    redirectResponse.cookies.set(cookie);
+  });
+  return redirectResponse;
 }
 
 export const config = {
