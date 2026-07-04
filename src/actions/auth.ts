@@ -79,9 +79,15 @@ export async function signup(_prevState: AuthState, formData: FormData): Promise
   redirect('/series');
 }
 
-export async function logout(): Promise<void> {
+export async function logout(): Promise<AuthState> {
   const supabase = await createClient();
-  await supabase.auth.signOut();
+  const { error } = await supabase.auth.signOut();
+
+  if (error) {
+    // Do not redirect: the session may still be active, so the user is not
+    // actually logged out.
+    return { error: friendlyAuthError(error.message) };
+  }
 
   revalidatePath('/', 'layout');
   redirect('/login');
