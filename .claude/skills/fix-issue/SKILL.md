@@ -38,10 +38,6 @@ git checkout -b feature/$ARGUMENTS-<short-description>
 2. If frontend: check `docs/DESIGN_SYSTEM.md` first, then check for mockups in `docs/mockups/issue-$ARGUMENTS/`
 3. Implement the changes following CLAUDE.md conventions
 4. Write tests using the test-writer agent
-5. Run the full verification suite and fix any failures:
-   - `pnpm typecheck`
-   - `pnpm lint`
-   - `pnpm test`
 
 ### If ui-designer:
 
@@ -50,7 +46,11 @@ git checkout -b feature/$ARGUMENTS-<short-description>
 3. Include a `README.md` with component mapping and Tailwind classes
 4. No tests or linting required for design artifacts
 
-## 5. Commit and open a PR
+## 5. Run the pr-ready checklist
+
+Execute the full checklist in `.claude/skills/pr-ready/SKILL.md` and fix every point that does not pass. **Never skip this step.**
+
+## 6. Commit and open a PR
 
 ```
 git add -A

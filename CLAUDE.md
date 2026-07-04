@@ -158,6 +158,12 @@ TMDB_API_KEY=                   # TMDB API v3 key (server-only)
 - "Fix the bug" → "Write a test that reproduces it, then make it pass"
 - For multi-step tasks, state a brief plan with verification at each step.
 
+## Workflow
+
+- Every GitHub issue goes through the `fix-issue` skill (`.claude/skills/fix-issue/SKILL.md`).
+- Every PR goes through the `pr-ready` skill (`.claude/skills/pr-ready/SKILL.md`) before pushing.
+- The skills in `.claude/skills/` are the reference for scaffolding patterns — consult them whenever they apply.
+
 ## Project Rules
 
 - NEVER add placeholder data or mock content. Only display real data from Supabase/TMDB.
