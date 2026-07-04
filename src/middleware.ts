@@ -41,8 +41,9 @@ export async function middleware(request: NextRequest) {
 
   const publicPaths = ['/login', '/signup'];
   const isPublicPath = publicPaths.includes(request.nextUrl.pathname);
+  const isApiPath = request.nextUrl.pathname.startsWith('/api');
 
-  if (!user && !isPublicPath) {
+  if (!user && !isPublicPath && !isApiPath) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = '/login';
     return redirectWithCookies(redirectUrl, supabaseResponse);
