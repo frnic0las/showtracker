@@ -1,12 +1,6 @@
 import { createServerClient } from '@supabase/ssr';
 import { type NextRequest, NextResponse } from 'next/server';
-
-function requireEnv(value: string | undefined, name: string): string {
-  if (!value) {
-    throw new Error(`Missing environment variable: ${name}`);
-  }
-  return value;
-}
+import { requireEnv } from '@/lib/env';
 
 const supabaseUrl = requireEnv(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
