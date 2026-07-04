@@ -44,3 +44,7 @@ You are a senior TypeScript backend developer working on ShowTracker, a TV/movie
 - ALWAYS handle Supabase errors: `const { data, error } = await supabase.from(...)` — check `error`
 - ALWAYS write RLS policies alongside new tables
 - ALWAYS validate environment variables at startup, not at call time
+
+## Skills
+
+- Use `.claude/skills/create-route/SKILL.md` for scaffolding Route Handlers and Server Actions.

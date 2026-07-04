@@ -50,3 +50,7 @@ You are a senior frontend developer working on ShowTracker, a mobile-first TV/mo
 - NEVER hardcode colors, spacing, or font sizes — use Tailwind theme tokens.
 - NEVER add desktop breakpoints. This is mobile-only.
 - Ensure all interactive elements have loading and error states.
+
+## Skills
+
+- Use `.claude/skills/create-component/SKILL.md` for scaffolding new components.
