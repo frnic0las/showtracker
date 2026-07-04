@@ -1,0 +1,1014 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Series page + Search sheet — Mockups (#25)</title>
+    <style>
+      /* ============================================================
+         Design tokens — mirror of src/app/globals.css
+         Dark mode via prefers-color-scheme (per issue deliverables).
+         ============================================================ */
+      :root {
+        --bg-primary: #ffffff;
+        --bg-secondary: #f2f2f7;
+        --bg-elevated: #ffffff;
+        --text-primary: #000000;
+        --text-secondary: rgba(60, 60, 67, 0.6);
+        --text-tertiary: rgba(60, 60, 67, 0.3);
+        --separator: rgba(60, 60, 67, 0.12);
+        --accent: #007aff;
+        --accent-green: #34c759;
+        --accent-red: #ff3b30;
+        --accent-orange: #ff9500;
+
+        /* Page chrome for this gallery (not app tokens) */
+        --page-bg: #e9e9ef;
+        --page-fg: #1c1c1e;
+        --page-muted: #6b6b70;
+        --frame-border: rgba(0, 0, 0, 0.08);
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg-primary: #000000;
+          --bg-secondary: #1c1c1e;
+          --bg-elevated: #2c2c2e;
+          --text-primary: #ffffff;
+          --text-secondary: rgba(235, 235, 245, 0.6);
+          --text-tertiary: rgba(235, 235, 245, 0.3);
+          --separator: rgba(84, 84, 88, 0.65);
+          --accent: #0a84ff;
+          --accent-green: #30d158;
+          --accent-red: #ff453a;
+          --accent-orange: #ff9f0a;
+
+          --page-bg: #111113;
+          --page-fg: #f2f2f7;
+          --page-muted: #8e8e93;
+          --frame-border: rgba(255, 255, 255, 0.1);
+        }
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display",
+          system-ui, sans-serif;
+        background: var(--page-bg);
+        color: var(--page-fg);
+        -webkit-font-smoothing: antialiased;
+        padding: 40px 24px 80px;
+      }
+
+      /* ---- Gallery scaffolding ------------------------------------ */
+      .gallery-header {
+        max-width: 1200px;
+        margin: 0 auto 40px;
+      }
+      .gallery-header h1 {
+        font-size: 28px;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+      }
+      .gallery-header p {
+        margin-top: 8px;
+        color: var(--page-muted);
+        font-size: 15px;
+        max-width: 640px;
+        line-height: 1.5;
+      }
+      .gallery-header .meta {
+        margin-top: 12px;
+        font-size: 13px;
+        color: var(--page-muted);
+      }
+
+      .section {
+        max-width: 1200px;
+        margin: 0 auto 56px;
+      }
+      .section > h2 {
+        font-size: 20px;
+        font-weight: 700;
+        letter-spacing: -0.01em;
+        padding-bottom: 4px;
+        border-bottom: 1px solid var(--frame-border);
+        margin-bottom: 24px;
+      }
+
+      .frames {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 32px;
+      }
+
+      .frame {
+        width: 390px;
+      }
+      .frame > .caption {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--page-muted);
+        margin-bottom: 10px;
+      }
+      .frame > .caption span {
+        font-weight: 400;
+      }
+
+      /* ---- Device (iPhone-ish) ------------------------------------ */
+      .device {
+        width: 390px;
+        height: 720px;
+        border-radius: 44px;
+        background: var(--bg-primary);
+        border: 1px solid var(--frame-border);
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18);
+        overflow: hidden;
+        position: relative;
+        display: flex;
+        flex-direction: column;
+      }
+      .device.short {
+        height: 560px;
+      }
+
+      /* Status bar */
+      .statusbar {
+        height: 44px;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 24px;
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--text-primary);
+      }
+      .statusbar .dots {
+        display: flex;
+        gap: 5px;
+        align-items: center;
+      }
+      .statusbar .dots svg { display: block; }
+
+      /* Screen scroll area */
+      .screen {
+        flex: 1;
+        min-height: 0;
+        position: relative;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+      }
+
+      /* ============================================================
+         App tokens applied to real components below
+         ============================================================ */
+
+      /* Page header (px-4 pt-3, h1 34/bold + trigger) */
+      .app-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 16px 8px;
+      }
+      .app-title {
+        font-size: 34px;
+        font-weight: 700;
+        color: var(--text-primary);
+        letter-spacing: 0.01em;
+      }
+      .icon-btn {
+        width: 44px;
+        height: 44px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--accent);
+        background: none;
+        border: none;
+        cursor: pointer;
+      }
+
+      .content {
+        flex: 1;
+        min-height: 0;
+        overflow: hidden;
+        padding: 0 16px;
+      }
+
+      /* ---- Series list (grouped, elevated, inset separators) ------ */
+      .series-list {
+        list-style: none;
+        border-radius: 12px;
+        background: var(--bg-elevated);
+        overflow: hidden;
+      }
+      .series-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px;
+        position: relative;
+      }
+      .series-row + .series-row::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 84px; /* inset: 12 padding + 60 poster + 12 gap */
+        right: 0;
+        height: 1px;
+        background: var(--separator);
+      }
+      .poster {
+        width: 60px;
+        height: 90px;
+        border-radius: 8px;
+        object-fit: cover;
+        flex-shrink: 0;
+        background: var(--bg-secondary);
+      }
+      .row-body {
+        min-width: 0;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .row-title {
+        font-size: 17px;
+        font-weight: 600;
+        color: var(--text-primary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      /* Status badges (sm radius chip, caption text) */
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        align-self: flex-start;
+        height: 20px;
+        padding: 0 8px;
+        border-radius: 8px;
+        font-size: 12px;
+        font-weight: 600;
+        line-height: 1;
+      }
+      .badge--watching {
+        color: var(--accent-orange);
+        background: color-mix(in srgb, var(--accent-orange) 14%, transparent);
+      }
+      .badge--completed {
+        color: var(--accent-green);
+        background: color-mix(in srgb, var(--accent-green) 14%, transparent);
+      }
+      .badge--watchlist {
+        color: var(--accent);
+        background: color-mix(in srgb, var(--accent) 14%, transparent);
+      }
+      .badge--stopped {
+        color: var(--text-secondary);
+        background: color-mix(in srgb, var(--text-secondary) 18%, transparent);
+      }
+
+      /* Progress: label + thin bar */
+      .progress {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .progress-label {
+        font-size: 13px;
+        color: var(--text-secondary);
+        font-variant-numeric: tabular-nums;
+      }
+      .progress-track {
+        height: 4px;
+        border-radius: 9999px;
+        background: color-mix(in srgb, var(--text-secondary) 24%, transparent);
+        overflow: hidden;
+      }
+      .progress-fill {
+        height: 100%;
+        border-radius: 9999px;
+        background: var(--accent-orange);
+      }
+      .progress-fill.green { background: var(--accent-green); }
+
+      .chevron {
+        flex-shrink: 0;
+        color: var(--text-tertiary);
+      }
+
+      /* ---- Empty state -------------------------------------------- */
+      .empty {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        gap: 12px;
+        padding: 72px 24px;
+      }
+      .empty .empty-icon {
+        color: var(--text-tertiary);
+      }
+      .empty .empty-title {
+        font-size: 17px;
+        font-weight: 600;
+        color: var(--text-primary);
+      }
+      .empty .empty-msg {
+        font-size: 15px;
+        color: var(--text-secondary);
+        max-width: 260px;
+        line-height: 1.4;
+      }
+      .cta {
+        margin-top: 8px;
+        min-height: 44px;
+        padding: 0 20px;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        border-radius: 12px;
+        background: var(--accent);
+        color: #ffffff;
+        font-size: 17px;
+        font-weight: 600;
+        border: none;
+        cursor: pointer;
+      }
+
+      /* ---- Error / message states --------------------------------- */
+      .state-msg {
+        padding: 64px 16px;
+        text-align: center;
+        font-size: 15px;
+        color: var(--text-secondary);
+        line-height: 1.4;
+      }
+      .state-msg .retry {
+        display: inline-block;
+        margin-top: 12px;
+        color: var(--accent);
+        font-size: 15px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+
+      /* ============================================================
+         Bottom navigation
+         ============================================================ */
+      .bottom-nav {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: 83px; /* 49 + 34 home indicator */
+        border-top: 1px solid var(--separator);
+        background: color-mix(in srgb, var(--bg-primary) 80%, transparent);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        display: flex;
+        padding-bottom: 34px;
+      }
+      .tab {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        color: var(--text-secondary);
+        text-decoration: none;
+      }
+      .tab.active { color: var(--accent); }
+      .tab .tab-label {
+        font-size: 10px;
+        line-height: 1;
+      }
+
+      /* Standalone nav swatch */
+      .nav-standalone {
+        width: 390px;
+        border: 1px solid var(--frame-border);
+        border-radius: 20px;
+        overflow: hidden;
+        background: var(--bg-primary);
+      }
+      .nav-standalone .bottom-nav {
+        position: static;
+        height: 49px;
+        padding-bottom: 0;
+      }
+
+      /* ============================================================
+         Sheet modal
+         ============================================================ */
+      .sheet-backdrop {
+        position: absolute;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.4);
+        z-index: 20;
+        display: flex;
+        align-items: flex-end;
+      }
+      .sheet {
+        width: 100%;
+        max-height: 90%;
+        display: flex;
+        flex-direction: column;
+        background: var(--bg-elevated);
+        border-top-left-radius: 16px;
+        border-top-right-radius: 16px;
+      }
+      .grabber {
+        display: flex;
+        justify-content: center;
+        padding-top: 8px;
+      }
+      .grabber span {
+        width: 36px;
+        height: 5px;
+        border-radius: 9999px;
+        background: var(--text-tertiary);
+      }
+      .sheet-title {
+        text-align: center;
+        font-size: 17px;
+        font-weight: 600;
+        color: var(--text-primary);
+        padding: 12px 16px 4px;
+      }
+      .sheet-body {
+        min-height: 0;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+      }
+
+      /* Search bar (iOS rounded rect) */
+      .searchbar-wrap {
+        padding: 4px 16px 8px;
+      }
+      .searchbar {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        border-radius: 10px;
+        background: var(--bg-secondary);
+        padding: 0 12px;
+        min-height: 44px;
+      }
+      .searchbar svg { color: var(--text-tertiary); flex-shrink: 0; }
+      .searchbar .field {
+        flex: 1;
+        font-size: 17px;
+        color: var(--text-primary);
+      }
+      .searchbar .field.placeholder { color: var(--text-tertiary); }
+      .searchbar .caret {
+        width: 2px;
+        height: 22px;
+        background: var(--accent);
+        border-radius: 1px;
+      }
+      .clear-btn {
+        width: 20px;
+        height: 20px;
+        border-radius: 9999px;
+        background: var(--text-tertiary);
+        color: var(--bg-secondary);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+      }
+
+      /* Search result rows */
+      .results {
+        list-style: none;
+      }
+      .result-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 8px 16px;
+        width: 100%;
+      }
+      .add-label {
+        flex-shrink: 0;
+        font-size: 15px;
+        font-weight: 600;
+      }
+      .add-label.add { color: var(--accent); }
+      .add-label.added { color: var(--accent-green); }
+      .add-label.adding {
+        color: var(--text-secondary);
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .add-error {
+        padding: 0 16px 8px;
+        font-size: 13px;
+        color: var(--accent-red);
+      }
+
+      /* Spinner */
+      .spinner {
+        width: 15px;
+        height: 15px;
+        border-radius: 9999px;
+        border: 2px solid color-mix(in srgb, var(--text-secondary) 30%, transparent);
+        border-top-color: var(--text-secondary);
+        animation: spin 0.7s linear infinite;
+      }
+      @keyframes spin { to { transform: rotate(360deg); } }
+
+      .idle-hint {
+        padding: 40px 16px;
+        text-align: center;
+        font-size: 15px;
+        color: var(--text-tertiary);
+        line-height: 1.4;
+      }
+
+      /* Dimmed page behind sheet */
+      .behind { filter: none; }
+
+      /* Notes callout under a frame */
+      .note {
+        margin-top: 12px;
+        font-size: 12px;
+        line-height: 1.5;
+        color: var(--page-muted);
+        background: color-mix(in srgb, var(--page-fg) 4%, transparent);
+        border: 1px solid var(--frame-border);
+        border-radius: 10px;
+        padding: 10px 12px;
+      }
+      .note b { color: var(--page-fg); font-weight: 600; }
+    </style>
+  </head>
+  <body>
+    <header class="gallery-header">
+      <h1>Series page + Search sheet</h1>
+      <p>
+        Reference mockups for issue #25. All screens at a 390px viewport, every state, light
+        &amp; dark via <code>prefers-color-scheme</code>. Toggle your OS appearance to preview
+        dark mode. Use these as the source of truth to audit and correct PRs #23 and #24 —
+        see <b>README.md</b> for the component-by-component mapping and the audit checklist.
+      </p>
+      <p class="meta">Tokens mirror <code>src/app/globals.css</code>. Fonts: system stack.</p>
+    </header>
+
+    <!-- SVG symbol defs -->
+    <svg width="0" height="0" style="position: absolute" aria-hidden="true">
+      <defs>
+        <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" /></symbol>
+        <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2" /><path d="m21 21-4.3-4.3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" /></symbol>
+        <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></symbol>
+        <symbol id="i-close" viewBox="0 0 24 24"><path d="M15 9l-6 6M9 9l6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" /></symbol>
+        <symbol id="i-tv" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="2" /><path d="M8 21h8M12 17v4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" /></symbol>
+        <symbol id="i-movies" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="2" /><path d="M3 9h18M7 4v5M17 4v5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" /></symbol>
+        <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="2" /><path d="M3 10h18M8 3v4M16 3v4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" /></symbol>
+        <symbol id="i-profile" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" fill="none" stroke="currentColor" stroke-width="2" /><path d="M4 20c0-4.418 3.582-7 8-7s8 2.582 8 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" /></symbol>
+        <symbol id="i-signal" viewBox="0 0 18 12"><rect x="0" y="7" width="3" height="5" rx="1" fill="currentColor"/><rect x="5" y="4" width="3" height="8" rx="1" fill="currentColor"/><rect x="10" y="2" width="3" height="10" rx="1" fill="currentColor"/><rect x="15" y="0" width="3" height="12" rx="1" fill="currentColor" opacity="0.35"/></symbol>
+        <symbol id="i-battery" viewBox="0 0 26 12"><rect x="0.5" y="0.5" width="21" height="11" rx="3" fill="none" stroke="currentColor" opacity="0.4"/><rect x="2" y="2" width="16" height="8" rx="1.5" fill="currentColor"/><rect x="23" y="4" width="2" height="4" rx="1" fill="currentColor" opacity="0.4"/></symbol>
+      </defs>
+    </svg>
+
+    <!-- ============================================================
+         SERIES PAGE
+         ============================================================ -->
+    <section class="section">
+      <h2>1 · Series page — /series</h2>
+      <div class="frames">
+
+        <!-- Empty state -->
+        <div class="frame">
+          <p class="caption">Empty state <span>· first-run, no series tracked</span></p>
+          <div class="device">
+            <div class="statusbar">
+              <span>9:41</span>
+              <span class="dots">
+                <svg width="18" height="12"><use href="#i-signal" /></svg>
+                <svg width="26" height="12"><use href="#i-battery" /></svg>
+              </span>
+            </div>
+            <div class="screen">
+              <div class="app-header">
+                <span class="app-title">Series</span>
+                <button class="icon-btn" aria-label="Add series"><svg width="28" height="28"><use href="#i-plus" /></svg></button>
+              </div>
+              <div class="content">
+                <div class="empty">
+                  <svg class="empty-icon" width="48" height="48"><use href="#i-tv" /></svg>
+                  <p class="empty-title">No series yet</p>
+                  <p class="empty-msg">Track a show to see your progress and upcoming episodes here.</p>
+                  <button class="cta"><svg width="20" height="20"><use href="#i-search" /></svg>Search for a series</button>
+                </div>
+              </div>
+              <nav class="bottom-nav">
+                <a class="tab active"><svg width="24" height="24"><use href="#i-tv" /></svg><span class="tab-label">Series</span></a>
+                <a class="tab"><svg width="24" height="24"><use href="#i-movies" /></svg><span class="tab-label">Movies</span></a>
+                <a class="tab"><svg width="24" height="24"><use href="#i-calendar" /></svg><span class="tab-label">Calendar</span></a>
+                <a class="tab"><svg width="24" height="24"><use href="#i-profile" /></svg><span class="tab-label">Profile</span></a>
+              </nav>
+            </div>
+          </div>
+          <p class="note"><b>Audit gap:</b> current code shows a text-only empty block. Add the 48px muted icon and the primary CTA button.</p>
+        </div>
+
+        <!-- Populated -->
+        <div class="frame">
+          <p class="caption">Populated list <span>· series cards with badge, progress, chevron</span></p>
+          <div class="device">
+            <div class="statusbar">
+              <span>9:41</span>
+              <span class="dots">
+                <svg width="18" height="12"><use href="#i-signal" /></svg>
+                <svg width="26" height="12"><use href="#i-battery" /></svg>
+              </span>
+            </div>
+            <div class="screen">
+              <div class="app-header">
+                <span class="app-title">Series</span>
+                <button class="icon-btn" aria-label="Add series"><svg width="28" height="28"><use href="#i-plus" /></svg></button>
+              </div>
+              <div class="content">
+                <ul class="series-list">
+                  <li class="series-row">
+                    <div class="poster" style="background: linear-gradient(160deg,#3a4a6b,#1b2740)"></div>
+                    <div class="row-body">
+                      <span class="row-title">Severance</span>
+                      <span class="badge badge--watching">Watching</span>
+                      <div class="progress">
+                        <span class="progress-label">S02 — 6/10</span>
+                        <div class="progress-track"><div class="progress-fill" style="width:60%"></div></div>
+                      </div>
+                    </div>
+                    <svg class="chevron" width="20" height="20"><use href="#i-chevron" /></svg>
+                  </li>
+                  <li class="series-row">
+                    <div class="poster" style="background: linear-gradient(160deg,#6b3a3a,#2b1616)"></div>
+                    <div class="row-body">
+                      <span class="row-title">The Bear</span>
+                      <span class="badge badge--completed">Completed</span>
+                      <div class="progress">
+                        <span class="progress-label">S03 — 10/10</span>
+                        <div class="progress-track"><div class="progress-fill green" style="width:100%"></div></div>
+                      </div>
+                    </div>
+                    <svg class="chevron" width="20" height="20"><use href="#i-chevron" /></svg>
+                  </li>
+                  <li class="series-row">
+                    <div class="poster" style="background: linear-gradient(160deg,#3a6b52,#152b20)"></div>
+                    <div class="row-body">
+                      <span class="row-title">Andor</span>
+                      <span class="badge badge--stopped">Stopped</span>
+                      <div class="progress">
+                        <span class="progress-label">S01 — 4/12</span>
+                        <div class="progress-track"><div class="progress-fill" style="width:33%; background: var(--text-tertiary)"></div></div>
+                      </div>
+                    </div>
+                    <svg class="chevron" width="20" height="20"><use href="#i-chevron" /></svg>
+                  </li>
+                  <li class="series-row">
+                    <div class="poster" style="background: linear-gradient(160deg,#4a3a6b,#20152b)"></div>
+                    <div class="row-body">
+                      <span class="row-title">Dune: Prophecy</span>
+                      <span class="badge badge--watchlist">Watchlist</span>
+                      <div class="progress">
+                        <span class="progress-label">Not started</span>
+                        <div class="progress-track"><div class="progress-fill" style="width:0%"></div></div>
+                      </div>
+                    </div>
+                    <svg class="chevron" width="20" height="20"><use href="#i-chevron" /></svg>
+                  </li>
+                </ul>
+              </div>
+              <nav class="bottom-nav">
+                <a class="tab active"><svg width="24" height="24"><use href="#i-tv" /></svg><span class="tab-label">Series</span></a>
+                <a class="tab"><svg width="24" height="24"><use href="#i-movies" /></svg><span class="tab-label">Movies</span></a>
+                <a class="tab"><svg width="24" height="24"><use href="#i-calendar" /></svg><span class="tab-label">Calendar</span></a>
+                <a class="tab"><svg width="24" height="24"><use href="#i-profile" /></svg><span class="tab-label">Profile</span></a>
+              </nav>
+            </div>
+          </div>
+          <p class="note"><b>Audit gap:</b> current row renders only title + year. Add status badge, <code>S##&nbsp;—&nbsp;x/y</code> progress label + bar, and a trailing chevron.</p>
+        </div>
+
+        <!-- Error state -->
+        <div class="frame">
+          <p class="caption">Error state <span>· Supabase query failed</span></p>
+          <div class="device">
+            <div class="statusbar">
+              <span>9:41</span>
+              <span class="dots">
+                <svg width="18" height="12"><use href="#i-signal" /></svg>
+                <svg width="26" height="12"><use href="#i-battery" /></svg>
+              </span>
+            </div>
+            <div class="screen">
+              <div class="app-header">
+                <span class="app-title">Series</span>
+                <button class="icon-btn" aria-label="Add series"><svg width="28" height="28"><use href="#i-plus" /></svg></button>
+              </div>
+              <div class="content">
+                <p class="state-msg">
+                  Could not load your series.<br />Please try again.
+                  <span class="retry">Retry</span>
+                </p>
+              </div>
+              <nav class="bottom-nav">
+                <a class="tab active"><svg width="24" height="24"><use href="#i-tv" /></svg><span class="tab-label">Series</span></a>
+                <a class="tab"><svg width="24" height="24"><use href="#i-movies" /></svg><span class="tab-label">Movies</span></a>
+                <a class="tab"><svg width="24" height="24"><use href="#i-calendar" /></svg><span class="tab-label">Calendar</span></a>
+                <a class="tab"><svg width="24" height="24"><use href="#i-profile" /></svg><span class="tab-label">Profile</span></a>
+              </nav>
+            </div>
+          </div>
+          <p class="note"><b>Audit gap:</b> current copy matches, but has no retry affordance. A server component can offer retry via a reload link.</p>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ============================================================
+         SEARCH SHEET
+         ============================================================ -->
+    <section class="section">
+      <h2>2 · Search sheet — add a series</h2>
+      <div class="frames">
+
+        <!-- Closed / trigger -->
+        <div class="frame">
+          <p class="caption">Closed <span>· "+" trigger in header</span></p>
+          <div class="device short">
+            <div class="statusbar">
+              <span>9:41</span>
+              <span class="dots">
+                <svg width="18" height="12"><use href="#i-signal" /></svg>
+                <svg width="26" height="12"><use href="#i-battery" /></svg>
+              </span>
+            </div>
+            <div class="screen">
+              <div class="app-header">
+                <span class="app-title">Series</span>
+                <button class="icon-btn" aria-label="Add series" style="outline: 2px dashed var(--accent); outline-offset: -6px; border-radius: 12px;"><svg width="28" height="28"><use href="#i-plus" /></svg></button>
+              </div>
+              <div class="content">
+                <ul class="series-list">
+                  <li class="series-row">
+                    <div class="poster" style="background: linear-gradient(160deg,#3a4a6b,#1b2740)"></div>
+                    <div class="row-body">
+                      <span class="row-title">Severance</span>
+                      <span class="badge badge--watching">Watching</span>
+                      <div class="progress">
+                        <span class="progress-label">S02 — 6/10</span>
+                        <div class="progress-track"><div class="progress-fill" style="width:60%"></div></div>
+                      </div>
+                    </div>
+                    <svg class="chevron" width="20" height="20"><use href="#i-chevron" /></svg>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+          <p class="note">The 44×44 touch target wraps a 28px "+" glyph in <code>--accent</code>. Dashed outline shown here for emphasis only.</p>
+        </div>
+
+        <!-- Idle -->
+        <div class="frame">
+          <p class="caption">Open · idle <span>· search empty, keyboard up</span></p>
+          <div class="device short">
+            <div class="screen behind">
+              <div class="app-header">
+                <span class="app-title" style="opacity:.5">Series</span>
+              </div>
+            </div>
+            <div class="sheet-backdrop">
+              <div class="sheet">
+                <div class="grabber"><span></span></div>
+                <div class="sheet-title">Add series</div>
+                <div class="sheet-body">
+                  <div class="searchbar-wrap">
+                    <div class="searchbar">
+                      <svg width="16" height="16"><use href="#i-search" /></svg>
+                      <span class="field placeholder">Search series</span>
+                      <span class="caret"></span>
+                    </div>
+                  </div>
+                  <p class="idle-hint">Start typing to search TMDB for a TV series.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <p class="note"><b>Audit gap:</b> idle sheet currently renders nothing under the bar. Add a one-line hint so it isn't blank.</p>
+        </div>
+
+        <!-- Loading -->
+        <div class="frame">
+          <p class="caption">Open · loading <span>· request in flight</span></p>
+          <div class="device short">
+            <div class="screen behind">
+              <div class="app-header"><span class="app-title" style="opacity:.5">Series</span></div>
+            </div>
+            <div class="sheet-backdrop">
+              <div class="sheet">
+                <div class="grabber"><span></span></div>
+                <div class="sheet-title">Add series</div>
+                <div class="sheet-body">
+                  <div class="searchbar-wrap">
+                    <div class="searchbar">
+                      <svg width="16" height="16"><use href="#i-search" /></svg>
+                      <span class="field">severance</span>
+                      <span class="clear-btn"><svg width="12" height="12"><use href="#i-close" /></svg></span>
+                    </div>
+                  </div>
+                  <p class="state-msg" style="padding:40px 16px; display:flex; flex-direction:column; align-items:center; gap:12px">
+                    <span class="spinner"></span>
+                    Searching…
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <p class="note"><b>Audit gap:</b> current loading is text-only "Searching…". Pair it with a spinner for a clearer in-flight signal.</p>
+        </div>
+
+        <!-- Results -->
+        <div class="frame">
+          <p class="caption">Open · results <span>· Add / Adding… / Added</span></p>
+          <div class="device short">
+            <div class="screen behind">
+              <div class="app-header"><span class="app-title" style="opacity:.5">Series</span></div>
+            </div>
+            <div class="sheet-backdrop">
+              <div class="sheet">
+                <div class="grabber"><span></span></div>
+                <div class="sheet-title">Add series</div>
+                <div class="sheet-body">
+                  <div class="searchbar-wrap">
+                    <div class="searchbar">
+                      <svg width="16" height="16"><use href="#i-search" /></svg>
+                      <span class="field">the</span>
+                      <span class="clear-btn"><svg width="12" height="12"><use href="#i-close" /></svg></span>
+                    </div>
+                  </div>
+                  <ul class="results">
+                    <li class="result-row">
+                      <div class="poster" style="background: linear-gradient(160deg,#6b3a3a,#2b1616)"></div>
+                      <div class="row-body">
+                        <span class="row-title">The Bear</span>
+                        <span class="progress-label">2022</span>
+                      </div>
+                      <span class="add-label add">Add</span>
+                    </li>
+                    <li class="result-row">
+                      <div class="poster" style="background: linear-gradient(160deg,#3a5a6b,#152431)"></div>
+                      <div class="row-body">
+                        <span class="row-title">The Last of Us</span>
+                        <span class="progress-label">2023</span>
+                      </div>
+                      <span class="add-label adding"><span class="spinner"></span>Adding…</span>
+                    </li>
+                    <li class="result-row">
+                      <div class="poster" style="background: linear-gradient(160deg,#4a3a6b,#20152b)"></div>
+                      <div class="row-body">
+                        <span class="row-title">The Boys</span>
+                        <span class="progress-label">2019</span>
+                      </div>
+                      <span class="add-label added">Added</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+          <p class="note">Add = <code>--accent</code>, Added = <code>--accent-green</code> (disabled row). Adding… pairs the spinner with muted text; the whole list is non-interactive while one add is pending.</p>
+        </div>
+
+        <!-- No results -->
+        <div class="frame">
+          <p class="caption">Open · no results</p>
+          <div class="device short">
+            <div class="screen behind">
+              <div class="app-header"><span class="app-title" style="opacity:.5">Series</span></div>
+            </div>
+            <div class="sheet-backdrop">
+              <div class="sheet">
+                <div class="grabber"><span></span></div>
+                <div class="sheet-title">Add series</div>
+                <div class="sheet-body">
+                  <div class="searchbar-wrap">
+                    <div class="searchbar">
+                      <svg width="16" height="16"><use href="#i-search" /></svg>
+                      <span class="field">zzxyq</span>
+                      <span class="clear-btn"><svg width="12" height="12"><use href="#i-close" /></svg></span>
+                    </div>
+                  </div>
+                  <p class="state-msg" style="padding:40px 16px">No series found.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <p class="note">Copy matches current implementation. No CTA — the user just refines the query.</p>
+        </div>
+
+        <!-- Error -->
+        <div class="frame">
+          <p class="caption">Open · error <span>· search request + add error</span></p>
+          <div class="device short">
+            <div class="screen behind">
+              <div class="app-header"><span class="app-title" style="opacity:.5">Series</span></div>
+            </div>
+            <div class="sheet-backdrop">
+              <div class="sheet">
+                <div class="grabber"><span></span></div>
+                <div class="sheet-title">Add series</div>
+                <div class="sheet-body">
+                  <div class="searchbar-wrap">
+                    <div class="searchbar">
+                      <svg width="16" height="16"><use href="#i-search" /></svg>
+                      <span class="field">severance</span>
+                      <span class="clear-btn"><svg width="12" height="12"><use href="#i-close" /></svg></span>
+                    </div>
+                  </div>
+                  <p class="add-error">Could not add series. Please try again.</p>
+                  <p class="state-msg" style="padding:32px 16px">
+                    Could not search right now.<br />Please try again.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <p class="note">Two error surfaces: the inline red <b>add error</b> (below the bar, <code>--accent-red</code>) and the centered <b>search error</b>. This frame shows both for reference; normally only one is visible.</p>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ============================================================
+         BOTTOM NAV
+         ============================================================ -->
+    <section class="section">
+      <h2>3 · Bottom navigation — active vs inactive</h2>
+      <div class="frames">
+        <div class="frame">
+          <p class="caption">Series active</p>
+          <div class="nav-standalone">
+            <nav class="bottom-nav">
+              <a class="tab active"><svg width="24" height="24"><use href="#i-tv" /></svg><span class="tab-label">Series</span></a>
+              <a class="tab"><svg width="24" height="24"><use href="#i-movies" /></svg><span class="tab-label">Movies</span></a>
+              <a class="tab"><svg width="24" height="24"><use href="#i-calendar" /></svg><span class="tab-label">Calendar</span></a>
+              <a class="tab"><svg width="24" height="24"><use href="#i-profile" /></svg><span class="tab-label">Profile</span></a>
+            </nav>
+          </div>
+        </div>
+        <div class="frame">
+          <p class="caption">Movies active</p>
+          <div class="nav-standalone">
+            <nav class="bottom-nav">
+              <a class="tab"><svg width="24" height="24"><use href="#i-tv" /></svg><span class="tab-label">Series</span></a>
+              <a class="tab active"><svg width="24" height="24"><use href="#i-movies" /></svg><span class="tab-label">Movies</span></a>
+              <a class="tab"><svg width="24" height="24"><use href="#i-calendar" /></svg><span class="tab-label">Calendar</span></a>
+              <a class="tab"><svg width="24" height="24"><use href="#i-profile" /></svg><span class="tab-label">Profile</span></a>
+            </nav>
+          </div>
+        </div>
+        <div class="frame">
+          <p class="caption">Calendar active</p>
+          <div class="nav-standalone">
+            <nav class="bottom-nav">
+              <a class="tab"><svg width="24" height="24"><use href="#i-tv" /></svg><span class="tab-label">Series</span></a>
+              <a class="tab"><svg width="24" height="24"><use href="#i-movies" /></svg><span class="tab-label">Movies</span></a>
+              <a class="tab active"><svg width="24" height="24"><use href="#i-calendar" /></svg><span class="tab-label">Calendar</span></a>
+              <a class="tab"><svg width="24" height="24"><use href="#i-profile" /></svg><span class="tab-label">Profile</span></a>
+            </nav>
+          </div>
+        </div>
+        <div class="frame">
+          <p class="caption">Profile active</p>
+          <div class="nav-standalone">
+            <nav class="bottom-nav">
+              <a class="tab"><svg width="24" height="24"><use href="#i-tv" /></svg><span class="tab-label">Series</span></a>
+              <a class="tab"><svg width="24" height="24"><use href="#i-movies" /></svg><span class="tab-label">Movies</span></a>
+              <a class="tab"><svg width="24" height="24"><use href="#i-calendar" /></svg><span class="tab-label">Calendar</span></a>
+              <a class="tab active"><svg width="24" height="24"><use href="#i-profile" /></svg><span class="tab-label">Profile</span></a>
+            </nav>
+          </div>
+        </div>
+      </div>
+    </section>
+  </body>
+</html>
