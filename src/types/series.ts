@@ -13,7 +13,4 @@ export interface SeriesSearchResult {
 }
 
 /** Result of the `addSeries` server action. */
-export interface AddSeriesResult {
-  ok: boolean;
-  error?: string;
-}
+export type AddSeriesResult = { ok: true } | { ok: false; error: string };

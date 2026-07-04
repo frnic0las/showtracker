@@ -84,7 +84,7 @@ export function SeriesSearchSheet({ trackedIds }: SeriesSearchSheetProps) {
       // sheet is dismissed.
       router.refresh();
     } else {
-      setAddError(result.error ?? 'Something went wrong. Please try again.');
+      setAddError(result.error);
     }
   }
 
@@ -133,12 +133,12 @@ export function SeriesSearchSheet({ trackedIds }: SeriesSearchSheetProps) {
                     <Image
                       src={poster}
                       alt=""
-                      width={46}
-                      height={69}
+                      width={60}
+                      height={90}
                       className="shrink-0 rounded-sm object-cover"
                     />
                   ) : (
-                    <div className="h-[69px] w-[46px] shrink-0 rounded-sm bg-bg-secondary" />
+                    <div className="h-[90px] w-[60px] shrink-0 rounded-sm bg-bg-secondary" />
                   )}
 
                   <div className="min-w-0 flex-1">

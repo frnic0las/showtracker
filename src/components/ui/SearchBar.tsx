@@ -96,7 +96,7 @@ export function SearchBar({
           type="button"
           aria-label="Clear search"
           onClick={clear}
-          className="flex h-11 w-6 shrink-0 items-center justify-center text-text-tertiary"
+          className="flex h-11 w-11 shrink-0 items-center justify-center text-text-tertiary"
         >
           <ClearIcon className="h-5 w-5" />
         </button>

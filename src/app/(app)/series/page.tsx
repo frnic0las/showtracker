@@ -64,12 +64,12 @@ export default async function SeriesPage() {
                   <Image
                     src={poster}
                     alt=""
-                    width={46}
-                    height={69}
+                    width={60}
+                    height={90}
                     className="shrink-0 rounded-sm object-cover"
                   />
                 ) : (
-                  <div className="h-[69px] w-[46px] shrink-0 rounded-sm bg-bg-secondary" />
+                  <div className="h-[90px] w-[60px] shrink-0 rounded-sm bg-bg-secondary" />
                 )}
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-[17px] font-semibold text-text-primary">
