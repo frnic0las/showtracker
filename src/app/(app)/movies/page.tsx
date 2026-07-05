@@ -4,7 +4,7 @@ import { CenteredState } from '@/components/ui/CenteredState';
 import { getUserMovieIds } from '@/lib/movies/queries';
 import { createClient } from '@/lib/supabase/server';
 
-function MoviesEmptyIcon() {
+function MoviesIcon() {
   return (
     <svg
       width="48"
@@ -46,7 +46,7 @@ export default async function MoviesPage() {
 
       {movieIds.length === 0 ? (
         <CenteredState
-          icon={<MoviesEmptyIcon />}
+          icon={<MoviesIcon />}
           title="No movies yet"
           description="Search for a movie to add it to your watchlist or mark it watched."
         >
@@ -54,7 +54,7 @@ export default async function MoviesPage() {
         </CenteredState>
       ) : (
         <CenteredState
-          icon={<MoviesEmptyIcon />}
+          icon={<MoviesIcon />}
           title={`${movieIds.length} ${movieIds.length === 1 ? 'movie' : 'movies'} tracked`}
           description="Movies you've added to your watchlist or marked watched. The full list view is on its way."
         >
