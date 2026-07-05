@@ -71,6 +71,8 @@ export interface SeriesDetail {
   backdropPath: string | null;
   status: string | null;
   firstAirDate: string | null;
+  /** The current user's tracking status, or `null` if they don't track it. */
+  userStatus: 'watching' | 'stopped' | 'watchlist' | null;
   seasons: SeasonProgress[];
   episodes: EpisodeWithStatus[];
 }

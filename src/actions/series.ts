@@ -105,6 +105,22 @@ export async function markSeasonWatched(
     return { ok: false, error: 'You must be signed in.' };
   }
 
+  // Only let a user mark a season of a series they actually track — otherwise a
+  // direct action call could create orphan watch records for untracked series.
+  const { data: tracked, error: trackedError } = await supabase
+    .from('user_series')
+    .select('tmdb_id')
+    .eq('user_id', user.id)
+    .eq('tmdb_id', tmdbSeriesId)
+    .maybeSingle();
+
+  if (trackedError) {
+    return { ok: false, error: 'Could not verify your series. Please try again.' };
+  }
+  if (!tracked) {
+    return { ok: false, error: 'This series is not in your list.' };
+  }
+
   const { data: episodes, error: episodesError } = await supabase
     .from('episodes_cache')
     .select('episode_number')
