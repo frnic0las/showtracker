@@ -7,6 +7,12 @@ import { SeriesSearchSheet } from '@/components/series/SeriesSearchSheet';
 interface SeriesSearchProps {
   /** TMDB ids the user already tracks, passed through for dedup display. */
   trackedIds: number[];
+  /**
+   * Visual style of the trigger: `'icon'` (default) is the header "+" button;
+   * `'cta'` is a full-width pill button for empty states. Both open the same
+   * search sheet.
+   */
+  variant?: 'icon' | 'cta';
 }
 
 function PlusIcon({ className }: { className?: string }) {
@@ -32,19 +38,29 @@ function PlusIcon({ className }: { className?: string }) {
  * Header entry point for adding a series: an iOS-style "+" button that opens
  * the search sheet. Owns the sheet's open state.
  */
-export function SeriesSearch({ trackedIds }: SeriesSearchProps) {
+export function SeriesSearch({ trackedIds, variant = 'icon' }: SeriesSearchProps) {
   const [open, setOpen] = useState(false);
 
   return (
     <>
-      <button
-        type="button"
-        aria-label="Add series"
-        onClick={() => setOpen(true)}
-        className="flex h-11 w-11 items-center justify-center text-accent"
-      >
-        <PlusIcon className="h-7 w-7" />
-      </button>
+      {variant === 'cta' ? (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="inline-flex min-h-11 items-center justify-center rounded-md bg-accent px-6 text-[17px] font-semibold text-white"
+        >
+          Search for a series
+        </button>
+      ) : (
+        <button
+          type="button"
+          aria-label="Add series"
+          onClick={() => setOpen(true)}
+          className="flex h-11 w-11 items-center justify-center text-accent"
+        >
+          <PlusIcon className="h-7 w-7" />
+        </button>
+      )}
       <Sheet open={open} onClose={() => setOpen(false)} title="Add series">
         <SeriesSearchSheet trackedIds={trackedIds} />
       </Sheet>
