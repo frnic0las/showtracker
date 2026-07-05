@@ -10,7 +10,7 @@ function MovieSection({ title, movies }: { title: string; movies: UserMovie[] })
   return (
     <section>
       <h2 className="px-4 pt-4 pb-2 text-[20px] font-semibold tracking-tight text-text-primary">
-        {title} <span className="font-semibold text-text-secondary">· {movies.length}</span>
+        {title} <span className="text-text-secondary">· {movies.length}</span>
       </h2>
       <div className="grid grid-cols-3 gap-x-3 gap-y-4 px-4">
         {movies.map((movie) => (

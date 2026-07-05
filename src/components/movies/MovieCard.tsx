@@ -61,7 +61,7 @@ export function MovieCard({ tmdbId, title, posterPath, year, watched }: UserMovi
           disabled={isPending}
           aria-pressed={optimisticWatched}
           aria-label={optimisticWatched ? `Mark ${title} as unwatched` : `Mark ${title} as watched`}
-          className="absolute right-0.5 top-0.5 flex h-11 w-11 items-center justify-center"
+          className="absolute right-1 top-1 flex h-11 w-11 items-center justify-center"
         >
           <span
             data-watched={optimisticWatched ? '' : undefined}
