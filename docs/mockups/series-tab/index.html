@@ -285,8 +285,8 @@
       /* Unwatched-episode count badge, top-right of the poster */
       .count-badge {
         position: absolute;
-        top: 6px;
-        right: 6px;
+        top: 8px;
+        right: 8px;
         min-width: 22px;
         height: 22px;
         padding: 0 6px;
@@ -301,7 +301,7 @@
         box-shadow: 0 1px 4px rgba(0, 0, 0, 0.28);
       }
       .grid-caption {
-        margin-top: 6px;
+        margin-top: 8px;
         font-size: 13px;
         font-weight: 600;
         color: var(--text-primary);
@@ -450,6 +450,12 @@
         color: var(--text-secondary);
         margin-top: 3px;
       }
+      /* Today entries: no day count — a single accent label */
+      .countdown .now {
+        font-size: 15px;
+        font-weight: 700;
+        color: var(--accent-orange);
+      }
 
       /* ------------------------------------------------------------------ *
        * Full-screen empty / error / loading states
@@ -526,7 +532,7 @@
       }
       .sk-line {
         height: 12px;
-        margin-top: 6px;
+        margin-top: 8px;
       }
 
       /* ------------------------------------------------------------------ *
@@ -563,7 +569,7 @@
         background: linear-gradient(
           to top,
           var(--bg-primary) 2%,
-          color-mix(in srgb, var(--bg-primary) 55%, transparent) 26%,
+          color-mix(in srgb, var(--bg-primary) 60%, transparent) 26%,
           transparent 60%
         );
       }
@@ -586,7 +592,7 @@
       }
       .hero-content {
         position: relative;
-        padding: 0 16px 14px;
+        padding: 0 16px 16px;
         z-index: 2;
         width: 100%;
       }
@@ -600,11 +606,11 @@
       .detail-meta {
         font-size: 13px;
         color: var(--text-secondary);
-        margin-top: 6px;
+        margin-top: 8px;
         display: flex;
         align-items: center;
         flex-wrap: wrap;
-        gap: 6px;
+        gap: 8px;
       }
       .detail-meta .dot {
         opacity: 0.5;
@@ -712,7 +718,7 @@
         background: var(--bg-elevated);
         border-radius: var(--radius-md);
         overflow: hidden;
-        margin-bottom: 10px;
+        margin-bottom: 8px;
       }
       .accordion-header {
         display: flex;
@@ -1308,6 +1314,18 @@
                 <button class="active" role="tab" aria-selected="true">Upcoming</button>
               </div>
 
+              <div class="group-header">Today</div>
+              <div class="up-group">
+                <a class="up-row">
+                  <div class="up-poster">The Diplomat</div>
+                  <div class="up-body">
+                    <div class="up-title">The Diplomat</div>
+                    <div class="up-ep">S2 E1 · Optics</div>
+                  </div>
+                  <div class="countdown"><div class="now">Today</div></div>
+                </a>
+              </div>
+
               <div class="group-header">Tomorrow</div>
               <div class="up-group">
                 <a class="up-row">
@@ -1478,7 +1496,6 @@
                 </div>
               </div>
 
-              <div class="section-title" style="padding-top: 8px;">Continue watching</div>
               <div class="continue-card">
                 <div class="continue-still">STILL</div>
                 <div class="continue-body">
@@ -1662,6 +1679,26 @@
                         <span class="check watched"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-11"/></svg></span>
                       </button>
                     </div>
+                    <div class="episode-row">
+                      <span class="ep-num">E4</span>
+                      <div class="ep-body">
+                        <div class="ep-name">The Happiness of All Mankind</div>
+                        <div class="ep-air">May 27, 2019</div>
+                      </div>
+                      <button class="check-hit" aria-label="Mark unwatched">
+                        <span class="check watched"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-11"/></svg></span>
+                      </button>
+                    </div>
+                    <div class="episode-row">
+                      <span class="ep-num">E5</span>
+                      <div class="ep-body">
+                        <div class="ep-name">Vichnaya Pamyat</div>
+                        <div class="ep-air">Jun 3, 2019</div>
+                      </div>
+                      <button class="check-hit" aria-label="Mark unwatched">
+                        <span class="check watched"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-11"/></svg></span>
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1719,13 +1756,13 @@
               </div>
               <div class="section-title">Seasons</div>
               <div class="seasons">
-                <div class="accordion" style="padding: 14px 12px;">
+                <div class="accordion" style="padding: 16px 12px;">
                   <div class="sk sk-line" style="width: 40%; height: 16px"></div>
                 </div>
-                <div class="accordion" style="padding: 14px 12px;">
+                <div class="accordion" style="padding: 16px 12px;">
                   <div class="sk sk-line" style="width: 40%; height: 16px"></div>
                 </div>
-                <div class="accordion" style="padding: 14px 12px;">
+                <div class="accordion" style="padding: 16px 12px;">
                   <div class="sk sk-line" style="width: 40%; height: 16px"></div>
                 </div>
               </div>

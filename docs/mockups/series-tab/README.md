@@ -17,7 +17,7 @@ with two sub-tabs, a poster grid, and a proper series detail page.
 | 3  | Series › To watch | Empty (first run) — no series tracked, CTA |
 | 4  | Series › To watch | Loading — skeleton poster grid |
 | 5  | Series › To watch | Error — Supabase load failed, retry |
-| 6  | Series › Upcoming | Populated — grouped Tomorrow / This week / Later, countdown |
+| 6  | Series › Upcoming | Populated — grouped Today / Tomorrow / This week / Later, countdown |
 | 7  | Series › Upcoming | Empty — no scheduled episodes |
 | 8  | Series detail | In progress — backdrop, continue-watching card, season accordions |
 | 9  | Series detail | Completed — all watched, "finished" state, no continue card |
@@ -50,6 +50,12 @@ and the in-Series **Upcoming** sub-tab are deliberately separate surfaces.
 Tokens resolve to the `bg-*`, `text-*`, `accent*`, `separator`, and `radius-*` theme keys
 already defined in `globals.css` (`@theme inline`). The mockup uses plain CSS with the same
 variables; the Tailwind equivalents below are what the React components should use.
+
+> **Radius classes.** `globals.css` overrides the radius scale via `@theme`, so in this
+> project `rounded-sm` = **8px**, `rounded-md` = **12px**, `rounded-lg` = **16px** (not the
+> vanilla Tailwind defaults). The `radius-full` pill is `rounded-full`. Classes below use
+> these project tokens; the `rounded-[6px]` on the segmented pill is an intentional off-scale
+> nested inset.
 
 ### Page header — `src/app/(app)/series/page.tsx`
 
@@ -94,19 +100,19 @@ inside a `p-0.5` track → the control clears the 44px touch minimum.
 ```
 <div class="grid grid-cols-3 gap-x-3 gap-y-4 px-4">
   <a class="min-w-0">
-    <div class="relative aspect-[2/3] overflow-hidden rounded-xl bg-bg-secondary">
+    <div class="relative aspect-[2/3] overflow-hidden rounded-md bg-bg-secondary">
       <Image … class="object-cover" />
-      <span class="absolute right-1.5 top-1.5 flex h-[22px] min-w-[22px]
+      <span class="absolute right-2 top-2 flex h-[22px] min-w-[22px]
                    items-center justify-center rounded-full bg-accent px-1.5
                    text-xs font-bold text-white shadow">7</span>   {/* unwatched count */}
     </div>
-    <p class="mt-1.5 truncate text-[13px] font-semibold text-text-primary">Severance</p>
+    <p class="mt-2 truncate text-[13px] font-semibold text-text-primary">Severance</p>
     <p class="truncate text-xs text-text-secondary">Next: S2 E3</p>
   </a>
 </div>
 ```
 
-- Poster `aspect-[2/3]`, `rounded-xl` (12px). TMDB `w185`.
+- Poster `aspect-[2/3]`, `rounded-md` (12px). TMDB `w185`.
 - **Count badge** = `bg-accent` pill, `min-w-[22px] h-[22px]`, only when unwatched > 0.
 - Watchlist items reuse the same card **without** the badge; subcaption shows total episode
   count (`8 episodes`).
@@ -129,8 +135,8 @@ watchlist section still renders below it.
 ### Archive link (new) — discreet entry to stopped + completed
 
 ```
-<a class="mx-4 mt-6 mb-1 flex min-h-[44px] items-center justify-between rounded-xl
-          bg-bg-elevated px-4 py-3.5 text-[15px] text-text-primary">
+<a class="mx-4 mt-6 mb-1 flex min-h-[44px] items-center justify-between rounded-md
+          bg-bg-elevated px-4 py-3 text-[15px] text-text-primary">
   <span>Stopped &amp; completed
     <span class="mt-0.5 block text-[13px] text-text-secondary">Shows you finished or set aside</span>
   </span>
@@ -144,9 +150,9 @@ The archive screen itself is out of scope for this issue (flagged below).
 
 ```
 <h3 class="px-4 pb-2 pt-4 text-[13px] uppercase tracking-wide text-text-secondary">Tomorrow</h3>
-<div class="mx-4 overflow-hidden rounded-xl bg-bg-elevated">
-  <a class="relative flex items-center gap-3 px-3 py-2.5">
-    <div class="h-[78px] w-[52px] shrink-0 overflow-hidden rounded-lg bg-bg-secondary">
+<div class="mx-4 overflow-hidden rounded-md bg-bg-elevated">
+  <a class="relative flex items-center gap-3 px-3 py-2">
+    <div class="h-[78px] w-[52px] shrink-0 overflow-hidden rounded-sm bg-bg-secondary">
       <Image … class="object-cover" />
     </div>
     <div class="min-w-0 flex-1">
@@ -161,8 +167,10 @@ The archive screen itself is out of scope for this issue (flagged below).
 </div>
 ```
 
-- Groups: **Tomorrow** / **This week** / **Later**. Bucket by days-until-air; hide empty
-  groups. Countdown label pluralises (`day` / `days`).
+- Groups: **Today** / **Tomorrow** / **This week** / **Later**. Bucket by days-until-air;
+  hide empty groups. Countdown label pluralises (`day` / `days`).
+- **Today** rows drop the numeric countdown for a single `text-accent-orange` "Today" label
+  (`text-[15px] font-bold`) in the same right-hand column — see frame 6.
 - Rows use the inset separator (`left-[76px]`) between siblings — same pattern as the
   existing series cards.
 - **Watchlist series are excluded** — Upcoming is started-series only, per the issue.
@@ -180,9 +188,9 @@ Server Component for the shell + data; the accordions and check toggles are clie
   <button class="absolute left-3 top-2 flex h-11 w-11 items-center justify-center
                  rounded-full bg-bg-primary/55 text-text-primary backdrop-blur-md"
           aria-label="Back">…</button>
-  <div class="relative z-[2] w-full px-4 pb-3.5">
+  <div class="relative z-[2] w-full px-4 pb-4">
     <h1 class="text-[28px] font-bold tracking-tight text-text-primary">Severance</h1>
-    <p class="mt-1.5 flex flex-wrap items-center gap-1.5 text-[13px] text-text-secondary">
+    <p class="mt-2 flex flex-wrap items-center gap-2 text-[13px] text-text-secondary">
       <span>2 seasons</span><span class="opacity-50">·</span>
       <span class="inline-flex items-center gap-1 font-semibold text-accent-orange">
         <DotIcon/>Returning</span><span class="opacity-50">·</span>
@@ -197,9 +205,13 @@ network.
 
 **Continue watching card** (next unwatched episode)
 
+Sits **directly beneath the hero — no section title.** The `Next up` kicker labels the card,
+so a separate "Continue watching" header would be redundant; the card is the prominent first
+element on the page.
+
 ```
-<div class="m-4 flex items-center gap-3 rounded-xl border border-separator bg-bg-elevated p-3">
-  <div class="h-[60px] w-[104px] shrink-0 overflow-hidden rounded-lg bg-bg-secondary">
+<div class="m-4 flex items-center gap-3 rounded-md border border-separator bg-bg-elevated p-3">
+  <div class="h-[60px] w-[104px] shrink-0 overflow-hidden rounded-sm bg-bg-secondary">
     <Image … class="object-cover" />                            {/* episode still, 16:9 */}
   </div>
   <div class="min-w-0 flex-1">
@@ -212,13 +224,13 @@ network.
 ```
 
 Hidden entirely on a completed series (screen 9) → replaced by a "You finished this series"
-inline state.
+inline state. The `Seasons` header below keeps its section title.
 
 **Season accordions** — `components/series/SeasonAccordion.tsx` (client)
 
 ```
-<div class="overflow-hidden rounded-xl bg-bg-elevated">
-  <button class="flex min-h-[52px] w-full items-center gap-2.5 px-3">
+<div class="mb-2 overflow-hidden rounded-md bg-bg-elevated">
+  <button class="flex min-h-[52px] w-full items-center gap-2 px-3">
     <span class="flex-1 text-left text-[17px] font-semibold text-text-primary">Season 2</span>
     <span class="text-[15px] font-semibold tabular-nums text-text-secondary">2/10</span>
     {/* when complete: text-accent-green + a CheckCircle icon */}
@@ -234,8 +246,8 @@ Season header progress: `watched/total`. When `watched === total`, colour it
 **Episode row** — `components/series/EpisodeRow.tsx`
 
 ```
-<div class="relative flex items-center gap-3 px-3 py-2.5">
-  <span class="w-[26px] shrink-0 text-[13px] font-semibold tabular-nums text-text-secondary">E3</span>
+<div class="relative flex items-center gap-3 px-3 py-2">
+  <span class="w-6 shrink-0 text-[13px] font-semibold tabular-nums text-text-secondary">E3</span>
   <div class="min-w-0 flex-1">
     <p class="truncate text-[17px] text-text-primary [.unwatched]:font-semibold">Who Is Alive?</p>
     <p class="mt-0.5 text-[13px] text-text-secondary">Jan 31, 2025</p>   {/* air date; upcoming → text-accent-orange */}
