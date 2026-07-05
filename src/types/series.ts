@@ -79,3 +79,16 @@ export interface SeriesDetail {
 
 /** Result of the `markSeasonWatched` server action. */
 export type MarkSeasonWatchedResult = { ok: true; marked: number } | { ok: false; error: string };
+
+/** Result of the `unmarkSeasonWatched` server action. */
+export type UnmarkSeasonWatchedResult =
+  | { ok: true; unmarked: number }
+  | { ok: false; error: string };
+
+/**
+ * Result of the `toggleEpisodeWatched` server action. `watched` reflects the
+ * episode's state after the toggle.
+ */
+export type ToggleEpisodeWatchedResult =
+  | { ok: true; watched: boolean }
+  | { ok: false; error: string };

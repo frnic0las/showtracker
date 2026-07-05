@@ -4,7 +4,12 @@ import { revalidatePath } from 'next/cache';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import { getSeriesDetails, TmdbApiError } from '@/lib/tmdb/client';
-import type { AddSeriesResult, MarkSeasonWatchedResult } from '@/types/series';
+import type {
+  AddSeriesResult,
+  MarkSeasonWatchedResult,
+  ToggleEpisodeWatchedResult,
+  UnmarkSeasonWatchedResult,
+} from '@/types/series';
 
 /**
  * Adds a TV series to the current user's tracking list with status
@@ -158,4 +163,168 @@ export async function markSeasonWatched(
   revalidatePath('/series');
 
   return { ok: true, marked: data?.length ?? 0 };
+}
+
+/**
+ * Toggles the watched state of a single episode for the current user. If a
+ * watch record exists it is deleted (episode becomes unwatched); otherwise one
+ * is inserted (episode becomes watched). Idempotent per resulting state: the
+ * existence check drives the branch, and the insert ignores conflicts on the
+ * `(user_id, tmdb_series_id, season_number, episode_number)` unique constraint,
+ * so concurrent toggles can never create duplicate rows. RLS scopes every read
+ * and write to the caller's own rows.
+ */
+export async function toggleEpisodeWatched(
+  tmdbSeriesId: number,
+  seasonNumber: number,
+  episodeNumber: number,
+): Promise<ToggleEpisodeWatchedResult> {
+  if (!Number.isInteger(tmdbSeriesId) || tmdbSeriesId < 1) {
+    return { ok: false, error: 'Invalid episode.' };
+  }
+  // Season 0 (specials) is excluded from the progress model.
+  if (!Number.isInteger(seasonNumber) || seasonNumber < 1) {
+    return { ok: false, error: 'Invalid episode.' };
+  }
+  if (!Number.isInteger(episodeNumber) || episodeNumber < 1) {
+    return { ok: false, error: 'Invalid episode.' };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { ok: false, error: 'You must be signed in.' };
+  }
+
+  // Only let a user toggle an episode of a series they actually track —
+  // otherwise a direct action call could create orphan watch records.
+  const { data: tracked, error: trackedError } = await supabase
+    .from('user_series')
+    .select('tmdb_id')
+    .eq('user_id', user.id)
+    .eq('tmdb_id', tmdbSeriesId)
+    .maybeSingle();
+
+  if (trackedError) {
+    return { ok: false, error: 'Could not verify your series. Please try again.' };
+  }
+  if (!tracked) {
+    return { ok: false, error: 'This series is not in your list.' };
+  }
+
+  const { data: existing, error: existingError } = await supabase
+    .from('user_episodes')
+    .select('id')
+    .eq('user_id', user.id)
+    .eq('tmdb_series_id', tmdbSeriesId)
+    .eq('season_number', seasonNumber)
+    .eq('episode_number', episodeNumber)
+    .maybeSingle();
+
+  if (existingError) {
+    return { ok: false, error: 'Could not update the episode. Please try again.' };
+  }
+
+  if (existing) {
+    const { error: deleteError } = await supabase
+      .from('user_episodes')
+      .delete()
+      .eq('user_id', user.id)
+      .eq('tmdb_series_id', tmdbSeriesId)
+      .eq('season_number', seasonNumber)
+      .eq('episode_number', episodeNumber);
+
+    if (deleteError) {
+      return { ok: false, error: 'Could not update the episode. Please try again.' };
+    }
+
+    revalidatePath(`/series/${tmdbSeriesId}`);
+    revalidatePath('/series');
+    return { ok: true, watched: false };
+  }
+
+  const { error: insertError } = await supabase.from('user_episodes').upsert(
+    {
+      user_id: user.id,
+      tmdb_series_id: tmdbSeriesId,
+      season_number: seasonNumber,
+      episode_number: episodeNumber,
+    },
+    {
+      onConflict: 'user_id,tmdb_series_id,season_number,episode_number',
+      ignoreDuplicates: true,
+    },
+  );
+
+  if (insertError) {
+    return { ok: false, error: 'Could not update the episode. Please try again.' };
+  }
+
+  revalidatePath(`/series/${tmdbSeriesId}`);
+  revalidatePath('/series');
+  return { ok: true, watched: true };
+}
+
+/**
+ * Removes every watch record for one season of a series for the current user.
+ * Idempotent: deleting rows that don't exist is a no-op, so re-running the
+ * action for an already-unwatched season safely reports `unmarked: 0`. The
+ * delete returns the rows it removed, so `unmarked` reflects episodes that were
+ * previously watched. RLS scopes the delete to the caller's own rows.
+ */
+export async function unmarkSeasonWatched(
+  tmdbSeriesId: number,
+  seasonNumber: number,
+): Promise<UnmarkSeasonWatchedResult> {
+  if (!Number.isInteger(tmdbSeriesId) || tmdbSeriesId < 1) {
+    return { ok: false, error: 'Invalid series or season.' };
+  }
+  // Season 0 (specials) is excluded from the progress model.
+  if (!Number.isInteger(seasonNumber) || seasonNumber < 1) {
+    return { ok: false, error: 'Invalid series or season.' };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { ok: false, error: 'You must be signed in.' };
+  }
+
+  // Only let a user unmark a season of a series they actually track.
+  const { data: tracked, error: trackedError } = await supabase
+    .from('user_series')
+    .select('tmdb_id')
+    .eq('user_id', user.id)
+    .eq('tmdb_id', tmdbSeriesId)
+    .maybeSingle();
+
+  if (trackedError) {
+    return { ok: false, error: 'Could not verify your series. Please try again.' };
+  }
+  if (!tracked) {
+    return { ok: false, error: 'This series is not in your list.' };
+  }
+
+  const { data, error } = await supabase
+    .from('user_episodes')
+    .delete()
+    .eq('user_id', user.id)
+    .eq('tmdb_series_id', tmdbSeriesId)
+    .eq('season_number', seasonNumber)
+    .select('id');
+
+  if (error) {
+    return { ok: false, error: 'Could not unmark season as watched. Please try again.' };
+  }
+
+  revalidatePath(`/series/${tmdbSeriesId}`);
+  revalidatePath('/series');
+
+  return { ok: true, unmarked: data?.length ?? 0 };
 }
