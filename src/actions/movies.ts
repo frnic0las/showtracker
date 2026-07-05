@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import { getMovieDetails, TmdbApiError } from '@/lib/tmdb/client';
-import type { AddMovieResult, MovieAddStatus } from '@/types/movies';
+import type { AddMovieResult, MovieAddStatus, ToggleMovieResult } from '@/types/movies';
 
 /**
  * Adds a movie to the current user's list, either as watched (with
@@ -82,6 +82,57 @@ export async function addMovie(tmdbId: number, status: MovieAddStatus): Promise<
 
   if (trackError) {
     return { ok: false, error: 'Could not add movie to your list. Please try again.' };
+  }
+
+  revalidatePath('/movies');
+  return { ok: true };
+}
+
+/**
+ * Flips the watched state of a movie already on the current user's list,
+ * moving it between the "Watched" and "Watchlist" sections. Marking watched
+ * stamps `watched_at` with the current time; clearing it nulls `watched_at`.
+ */
+export async function toggleMovieWatched(tmdbId: number): Promise<ToggleMovieResult> {
+  if (!Number.isInteger(tmdbId) || tmdbId < 1) {
+    return { ok: false, error: 'Invalid movie id.' };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { ok: false, error: 'You must be signed in to update a movie.' };
+  }
+
+  const { data: row, error: readError } = await supabase
+    .from('user_movies')
+    .select('watched')
+    .eq('user_id', user.id)
+    .eq('tmdb_id', tmdbId)
+    .maybeSingle();
+
+  if (readError) {
+    return { ok: false, error: 'Could not update movie. Please try again.' };
+  }
+  if (!row) {
+    return { ok: false, error: 'Movie is not on your list.' };
+  }
+
+  const nextWatched = !row.watched;
+  const { error: updateError } = await supabase
+    .from('user_movies')
+    .update({
+      watched: nextWatched,
+      watched_at: nextWatched ? new Date().toISOString() : null,
+    })
+    .eq('user_id', user.id)
+    .eq('tmdb_id', tmdbId);
+
+  if (updateError) {
+    return { ok: false, error: 'Could not update movie. Please try again.' };
   }
 
   revalidatePath('/movies');
