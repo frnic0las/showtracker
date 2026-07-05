@@ -1,0 +1,1858 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ShowTracker — Series tab (TV Time model, mockups)</title>
+    <style>
+      /* ------------------------------------------------------------------ *
+       * Design tokens — mirrors docs/DESIGN_SYSTEM.md and src/app/globals.css
+       * ------------------------------------------------------------------ */
+      :root {
+        --bg-primary: #ffffff;
+        --bg-secondary: #f2f2f7;
+        --bg-elevated: #ffffff;
+        --text-primary: #000000;
+        --text-secondary: rgba(60, 60, 67, 0.6);
+        --text-tertiary: rgba(60, 60, 67, 0.3);
+        --separator: rgba(60, 60, 67, 0.12);
+        --accent: #007aff;
+        --accent-green: #34c759;
+        --accent-red: #ff3b30;
+        --accent-orange: #ff9500;
+
+        --radius-sm: 8px;
+        --radius-md: 12px;
+        --radius-lg: 16px;
+
+        /* Chrome around the phone frames (not part of the app palette) */
+        --stage-bg: #e5e5ea;
+        --frame-border: rgba(0, 0, 0, 0.14);
+        --label-color: #48484a;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg-primary: #000000;
+          --bg-secondary: #1c1c1e;
+          --bg-elevated: #2c2c2e;
+          --text-primary: #ffffff;
+          --text-secondary: rgba(235, 235, 245, 0.6);
+          --text-tertiary: rgba(235, 235, 245, 0.3);
+          --separator: rgba(84, 84, 88, 0.65);
+          --accent: #0a84ff;
+          --accent-green: #30d158;
+          --accent-red: #ff453a;
+          --accent-orange: #ff9f0a;
+
+          --stage-bg: #0c0c0e;
+          --frame-border: rgba(255, 255, 255, 0.16);
+          --label-color: #aeaeb2;
+        }
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display",
+          system-ui, sans-serif;
+        background: var(--stage-bg);
+        color: var(--text-primary);
+        -webkit-font-smoothing: antialiased;
+        padding: 40px 24px 80px;
+      }
+
+      .page-title {
+        text-align: center;
+        max-width: 720px;
+        margin: 0 auto 8px;
+        color: var(--label-color);
+      }
+      .page-title h1 {
+        font-size: 24px;
+        font-weight: 700;
+        color: var(--text-primary);
+      }
+      .page-title p {
+        font-size: 14px;
+        margin-top: 6px;
+      }
+
+      /* ------------------------------------------------------------------ *
+       * Gallery + phone frame chrome
+       * ------------------------------------------------------------------ */
+      .gallery {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 48px 40px;
+        justify-content: center;
+        align-items: flex-start;
+        margin-top: 48px;
+      }
+
+      .frame-wrap {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 14px;
+      }
+
+      .frame-label {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--label-color);
+        text-align: center;
+        max-width: 390px;
+      }
+      .frame-label span {
+        display: block;
+        font-weight: 400;
+        font-size: 12px;
+        opacity: 0.8;
+        margin-top: 2px;
+      }
+
+      /* The phone: exactly 390px wide viewport, per deliverable spec */
+      .phone {
+        position: relative;
+        width: 390px;
+        height: 800px;
+        background: var(--bg-primary);
+        border: 10px solid #1a1a1c;
+        border-radius: 44px;
+        overflow: hidden;
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.28);
+      }
+
+      .viewport {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+
+      /* iOS status bar */
+      .statusbar {
+        height: 44px;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 24px;
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--text-primary);
+        z-index: 5;
+      }
+      .statusbar .glyphs {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+      }
+      .statusbar svg {
+        display: block;
+      }
+
+      /* Scrollable content area, leaves room for the tab bar */
+      .content {
+        flex: 1;
+        overflow-y: auto;
+        overflow-x: hidden;
+        padding-bottom: 92px;
+      }
+
+      /* ------------------------------------------------------------------ *
+       * App header (Large Title + add button)
+       * ------------------------------------------------------------------ */
+      .app-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 16px 8px;
+      }
+      .app-header h1 {
+        font-size: 34px;
+        font-weight: 700;
+        letter-spacing: -0.4px;
+        color: var(--text-primary);
+      }
+      .add-btn {
+        width: 44px;
+        height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--accent);
+        background: none;
+        border: none;
+        margin-right: -8px;
+      }
+
+      /* ------------------------------------------------------------------ *
+       * Sub-tab segmented control (To watch / Upcoming)
+       * ------------------------------------------------------------------ */
+      .segmented {
+        display: flex;
+        gap: 2px;
+        margin: 4px 16px 8px;
+        background: var(--bg-secondary);
+        border-radius: var(--radius-sm); /* 8px */
+        padding: 2px;
+      }
+      .segmented button {
+        flex: 1;
+        border: none;
+        background: none;
+        font-family: inherit;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text-primary);
+        min-height: 40px; /* + 2px track padding each side ≈ 44px control */
+        padding: 8px 0;
+        border-radius: 6px; /* nested inset of the 8px track */
+        cursor: pointer;
+      }
+      .segmented button.active {
+        background: var(--bg-elevated);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.16), 0 0 0 0.5px rgba(0, 0, 0, 0.04);
+      }
+      /* Elevated == primary in light mode, so give the active pill a hairline */
+      @media (prefers-color-scheme: light) {
+        .segmented button.active {
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.14);
+        }
+      }
+
+      /* ------------------------------------------------------------------ *
+       * Section titles
+       * ------------------------------------------------------------------ */
+      .section-title {
+        font-size: 20px;
+        font-weight: 600; /* Title 3 — semibold per DESIGN_SYSTEM */
+        letter-spacing: -0.2px;
+        color: var(--text-primary);
+        padding: 16px 16px 8px;
+      }
+      .section-title .count {
+        font-weight: 600;
+        color: var(--text-secondary);
+      }
+      /* Uppercase grouped-list header (used inside Upcoming) */
+      .group-header {
+        font-size: 13px;
+        font-weight: 400;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        color: var(--text-secondary);
+        padding: 16px 16px 8px;
+      }
+
+      /* ------------------------------------------------------------------ *
+       * Poster grid (Continue watching + Watchlist)
+       * ------------------------------------------------------------------ */
+      .poster-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px 12px;
+        padding: 0 16px;
+      }
+      .grid-item {
+        text-decoration: none;
+        color: inherit;
+        min-width: 0;
+      }
+      .grid-poster {
+        position: relative;
+        aspect-ratio: 2 / 3;
+        border-radius: var(--radius-md);
+        background: var(--bg-secondary);
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--text-tertiary);
+        text-align: center;
+        padding: 6px;
+        line-height: 1.2;
+      }
+      /* Unwatched-episode count badge, top-right of the poster */
+      .count-badge {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        min-width: 22px;
+        height: 22px;
+        padding: 0 6px;
+        border-radius: 9999px;
+        background: var(--accent);
+        color: #fff;
+        font-size: 12px;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.28);
+      }
+      .grid-caption {
+        margin-top: 8px;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text-primary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .grid-subcaption {
+        font-size: 12px;
+        color: var(--text-secondary);
+        margin-top: 1px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      /* ------------------------------------------------------------------ *
+       * Inline "caught up" state (top of To-watch, watchlist still below)
+       * ------------------------------------------------------------------ */
+      .inline-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        gap: 8px;
+        padding: 28px 40px 8px;
+      }
+      .inline-state .state-icon {
+        color: var(--accent-green);
+      }
+      .inline-state .state-title {
+        font-size: 17px;
+        font-weight: 600;
+        color: var(--text-primary);
+      }
+      .inline-state .state-sub {
+        font-size: 15px;
+        color: var(--text-secondary);
+        max-width: 240px;
+        line-height: 1.4;
+      }
+
+      /* Discreet link to stopped + completed archive */
+      .archive-link {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin: 24px 16px 4px;
+        padding: 12px 16px;
+        min-height: 44px;
+        background: var(--bg-elevated);
+        border-radius: var(--radius-md);
+        color: var(--text-primary);
+        font-size: 15px;
+        text-decoration: none;
+      }
+      .archive-link .sub {
+        color: var(--text-secondary);
+        font-size: 13px;
+        margin-top: 2px;
+      }
+      .archive-link .chevron {
+        color: var(--text-tertiary);
+        flex-shrink: 0;
+      }
+
+      /* ------------------------------------------------------------------ *
+       * Upcoming list — grouped by time proximity
+       * ------------------------------------------------------------------ */
+      .up-group {
+        background: var(--bg-elevated);
+        border-radius: var(--radius-md);
+        margin: 0 16px;
+        overflow: hidden;
+      }
+      .up-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 8px 12px;
+        position: relative;
+        text-decoration: none;
+        color: inherit;
+      }
+      .up-row + .up-row::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 76px; /* 12 padding + 52 poster + 12 gap */
+        right: 0;
+        height: 1px;
+        background: var(--separator);
+      }
+      .up-poster {
+        width: 52px;
+        height: 78px;
+        border-radius: var(--radius-sm);
+        background: var(--bg-secondary);
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--text-tertiary);
+        text-align: center;
+        padding: 4px;
+        line-height: 1.2;
+        overflow: hidden;
+      }
+      .up-body {
+        flex: 1;
+        min-width: 0;
+      }
+      .up-title {
+        font-size: 17px;
+        font-weight: 600;
+        color: var(--text-primary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .up-ep {
+        font-size: 13px;
+        color: var(--text-secondary);
+        margin-top: 3px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .countdown {
+        flex-shrink: 0;
+        text-align: center;
+        min-width: 52px;
+      }
+      .countdown .num {
+        font-size: 22px;
+        font-weight: 700;
+        line-height: 1;
+        color: var(--accent-orange);
+      }
+      .countdown .lbl {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+        color: var(--text-secondary);
+        margin-top: 3px;
+      }
+      /* Today entries: no day count — a single accent label */
+      .countdown .now {
+        font-size: 15px;
+        font-weight: 700;
+        color: var(--accent-orange);
+      }
+
+      /* ------------------------------------------------------------------ *
+       * Full-screen empty / error / loading states
+       * ------------------------------------------------------------------ */
+      .state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 80px 40px;
+        gap: 12px;
+        min-height: 440px;
+      }
+      .state-icon {
+        color: var(--text-tertiary);
+        margin-bottom: 4px;
+      }
+      .state-title {
+        font-size: 17px;
+        font-weight: 600;
+        color: var(--text-primary);
+      }
+      .state-sub {
+        font-size: 15px;
+        color: var(--text-secondary);
+        max-width: 260px;
+        line-height: 1.4;
+      }
+      .cta {
+        margin-top: 12px;
+        min-height: 44px;
+        padding: 0 24px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--accent);
+        color: #fff;
+        font-size: 17px;
+        font-weight: 600;
+        border-radius: var(--radius-md);
+        border: none;
+        cursor: pointer;
+      }
+
+      /* Skeleton shimmer */
+      .sk {
+        background: var(--bg-secondary);
+        border-radius: var(--radius-sm); /* 8px */
+        position: relative;
+        overflow: hidden;
+      }
+      .sk::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+          90deg,
+          transparent,
+          color-mix(in srgb, var(--text-tertiary) 22%, transparent),
+          transparent
+        );
+        transform: translateX(-100%);
+        animation: shimmer 1.3s infinite;
+      }
+      @keyframes shimmer {
+        100% {
+          transform: translateX(100%);
+        }
+      }
+      .sk-poster {
+        aspect-ratio: 2 / 3;
+        border-radius: var(--radius-md);
+      }
+      .sk-line {
+        height: 12px;
+        margin-top: 8px;
+      }
+
+      /* ------------------------------------------------------------------ *
+       * Series detail page
+       * ------------------------------------------------------------------ */
+      .detail-content {
+        flex: 1;
+        overflow-y: auto;
+        overflow-x: hidden;
+        padding-bottom: 92px;
+      }
+      .hero {
+        position: relative;
+        height: 220px;
+        background: var(--bg-secondary);
+        display: flex;
+        align-items: flex-end;
+        overflow: hidden;
+      }
+      .hero-placeholder {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--text-tertiary);
+        font-size: 13px;
+        font-weight: 600;
+        letter-spacing: 0.4px;
+      }
+      .hero-gradient {
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+          to top,
+          var(--bg-primary) 2%,
+          color-mix(in srgb, var(--bg-primary) 60%, transparent) 26%,
+          transparent 60%
+        );
+      }
+      .hero-back {
+        position: absolute;
+        top: 8px;
+        left: 12px;
+        width: 44px;
+        height: 44px;
+        border-radius: 9999px;
+        background: color-mix(in srgb, var(--bg-primary) 55%, transparent);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--text-primary);
+        border: none;
+        z-index: 3;
+      }
+      .hero-content {
+        position: relative;
+        padding: 0 16px 16px;
+        z-index: 2;
+        width: 100%;
+      }
+      .detail-title {
+        font-size: 28px;
+        font-weight: 700;
+        letter-spacing: -0.3px;
+        color: var(--text-primary);
+        line-height: 1.1;
+      }
+      .detail-meta {
+        font-size: 13px;
+        color: var(--text-secondary);
+        margin-top: 8px;
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .detail-meta .dot {
+        opacity: 0.5;
+      }
+      .meta-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-weight: 600;
+        color: var(--accent-orange);
+      }
+      .meta-status.ended {
+        color: var(--text-secondary);
+      }
+
+      /* Continue-watching card (next unwatched episode) */
+      .continue-card {
+        margin: 16px;
+        background: var(--bg-elevated);
+        border: 1px solid var(--separator);
+        border-radius: var(--radius-md);
+        padding: 12px;
+        display: flex;
+        gap: 12px;
+        align-items: center;
+      }
+      .continue-still {
+        width: 104px;
+        height: 60px;
+        border-radius: var(--radius-sm);
+        background: var(--bg-secondary);
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--text-tertiary);
+        font-size: 10px;
+        font-weight: 600;
+        overflow: hidden;
+      }
+      .continue-body {
+        flex: 1;
+        min-width: 0;
+      }
+      .continue-kicker {
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--accent);
+      }
+      .continue-ep {
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-top: 3px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .continue-air {
+        font-size: 12px;
+        color: var(--text-secondary);
+        margin-top: 3px;
+      }
+
+      /* Round check control (episodes + continue card) */
+      .check {
+        width: 28px;
+        height: 28px;
+        border-radius: 9999px;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 2px solid var(--text-tertiary);
+        color: transparent;
+        background: none;
+        cursor: pointer;
+      }
+      .check.watched {
+        background: var(--accent-green);
+        border-color: var(--accent-green);
+        color: #fff;
+      }
+      /* 44px touch target without enlarging the visual circle */
+      .check-hit {
+        width: 44px;
+        height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: none;
+        background: none;
+        flex-shrink: 0;
+        margin: -8px -8px -8px 0;
+        cursor: pointer;
+      }
+
+      /* Season accordions */
+      .seasons {
+        padding: 0 16px;
+      }
+      .accordion {
+        background: var(--bg-elevated);
+        border-radius: var(--radius-md);
+        overflow: hidden;
+        margin-bottom: 8px;
+      }
+      .accordion-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 0 12px;
+        min-height: 52px;
+        cursor: pointer;
+      }
+      .season-name {
+        flex: 1;
+        font-size: 17px;
+        font-weight: 600;
+        color: var(--text-primary);
+      }
+      .season-progress {
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--text-secondary);
+        font-variant-numeric: tabular-nums;
+      }
+      .season-progress.complete {
+        color: var(--accent-green);
+      }
+      .season-check {
+        color: var(--accent-green);
+        display: flex;
+      }
+      .accordion-chevron {
+        color: var(--text-tertiary);
+        transition: transform 0.2s ease;
+      }
+      .accordion.open .accordion-chevron {
+        transform: rotate(90deg);
+      }
+      .episode-list {
+        border-top: 1px solid var(--separator);
+      }
+      .episode-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 8px 12px;
+        position: relative;
+      }
+      .episode-row + .episode-row::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 12px;
+        right: 12px;
+        height: 1px;
+        background: var(--separator);
+      }
+      .ep-num {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text-secondary);
+        width: 24px;
+        flex-shrink: 0;
+        font-variant-numeric: tabular-nums;
+      }
+      .ep-body {
+        flex: 1;
+        min-width: 0;
+      }
+      .ep-name {
+        font-size: 17px;
+        color: var(--text-primary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .ep-name.unwatched {
+        font-weight: 600;
+      }
+      .ep-air {
+        font-size: 13px;
+        color: var(--text-secondary);
+        margin-top: 2px;
+      }
+      .ep-air.upcoming {
+        color: var(--accent-orange);
+      }
+
+      /* ------------------------------------------------------------------ *
+       * Bottom tab bar
+       * ------------------------------------------------------------------ */
+      .tabbar {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: 83px; /* 49 bar + 34 home indicator area */
+        padding-bottom: 20px;
+        border-top: 1px solid var(--separator);
+        background: color-mix(in srgb, var(--bg-primary) 80%, transparent);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        display: flex;
+        z-index: 4;
+      }
+      .tab {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        color: var(--text-secondary);
+        text-decoration: none;
+      }
+      .tab.active {
+        color: var(--accent);
+      }
+      .tab span {
+        font-size: 10px;
+        line-height: 1;
+      }
+      .home-indicator {
+        position: absolute;
+        bottom: 8px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 134px;
+        height: 5px;
+        border-radius: 3px;
+        background: var(--text-primary);
+        opacity: 0.85;
+        z-index: 5;
+      }
+
+      .caption-note {
+        max-width: 720px;
+        margin: 56px auto 0;
+        font-size: 13px;
+        color: var(--label-color);
+        line-height: 1.6;
+        text-align: center;
+      }
+      code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page-title">
+      <h1>Series tab — TV Time model</h1>
+      <p>Issue #29 — all screens at a 390px viewport. Toggle your OS light/dark to preview both themes.</p>
+    </div>
+
+    <div class="gallery">
+      <!-- ============================================================= -->
+      <!-- 1. TO WATCH — POPULATED                                        -->
+      <!-- ============================================================= -->
+      <div class="frame-wrap">
+        <div class="frame-label">
+          To watch — populated
+          <span>Continue-watching grid + Watchlist + archive link</span>
+        </div>
+        <div class="phone">
+          <div class="viewport">
+            <div class="statusbar">
+              <span>9:41</span>
+              <span class="glyphs">
+                <svg width="18" height="12" viewBox="0 0 18 12" fill="currentColor"><rect x="0" y="7" width="3" height="5" rx="1"/><rect x="4" y="5" width="3" height="7" rx="1"/><rect x="8" y="3" width="3" height="9" rx="1"/><rect x="12" y="1" width="3" height="11" rx="1"/></svg>
+                <svg width="16" height="12" viewBox="0 0 16 12" fill="currentColor"><path d="M8 2.5c1.9 0 3.6.7 4.9 1.9l1-1C12.3 1.9 10.2 1 8 1S3.7 1.9 2.1 3.4l1 1C4.4 3.2 6.1 2.5 8 2.5z" opacity=".9"/><path d="M8 5.5c1 0 2 .4 2.7 1.1l1-1C10.7 4.7 9.4 4.2 8 4.2s-2.7.5-3.7 1.4l1 1C6 5.9 7 5.5 8 5.5z" opacity=".9"/><circle cx="8" cy="9" r="1.6"/></svg>
+                <svg width="26" height="12" viewBox="0 0 26 12" fill="none"><rect x="1" y="1" width="21" height="10" rx="2.5" stroke="currentColor" opacity=".4"/><rect x="3" y="3" width="16" height="6" rx="1" fill="currentColor"/><rect x="23" y="4" width="1.5" height="4" rx=".75" fill="currentColor" opacity=".5"/></svg>
+              </span>
+            </div>
+
+            <div class="content">
+              <div class="app-header">
+                <h1>Series</h1>
+                <button class="add-btn" aria-label="Add series">
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+                </button>
+              </div>
+
+              <div class="segmented" role="tablist">
+                <button class="active" role="tab" aria-selected="true">To watch</button>
+                <button role="tab" aria-selected="false">Upcoming</button>
+              </div>
+
+              <!-- CONTINUE WATCHING (poster grid) -->
+              <div class="section-title">Continue watching</div>
+              <div class="poster-grid">
+                <a class="grid-item">
+                  <div class="grid-poster">Severance<span class="count-badge">7</span></div>
+                  <div class="grid-caption">Severance</div>
+                  <div class="grid-subcaption">Next: S2 E3</div>
+                </a>
+                <a class="grid-item">
+                  <div class="grid-poster">The Bear<span class="count-badge">4</span></div>
+                  <div class="grid-caption">The Bear</div>
+                  <div class="grid-subcaption">Next: S3 E5</div>
+                </a>
+                <a class="grid-item">
+                  <div class="grid-poster">The Last of Us<span class="count-badge">2</span></div>
+                  <div class="grid-caption">The Last of Us</div>
+                  <div class="grid-subcaption">Next: S1 E8</div>
+                </a>
+                <a class="grid-item">
+                  <div class="grid-poster">Shōgun<span class="count-badge">9</span></div>
+                  <div class="grid-caption">Shōgun</div>
+                  <div class="grid-subcaption">Next: S1 E1</div>
+                </a>
+                <a class="grid-item">
+                  <div class="grid-poster">Slow Horses<span class="count-badge">1</span></div>
+                  <div class="grid-caption">Slow Horses</div>
+                  <div class="grid-subcaption">Next: S4 E6</div>
+                </a>
+                <a class="grid-item">
+                  <div class="grid-poster">Andor<span class="count-badge">12</span></div>
+                  <div class="grid-caption">Andor</div>
+                  <div class="grid-subcaption">Next: S1 E1</div>
+                </a>
+              </div>
+
+              <!-- WATCHLIST (saved, not started) -->
+              <div class="section-title">Watchlist <span class="count">· 3</span></div>
+              <div class="poster-grid">
+                <a class="grid-item">
+                  <div class="grid-poster">Dune: Prophecy</div>
+                  <div class="grid-caption">Dune: Prophecy</div>
+                  <div class="grid-subcaption">6 episodes</div>
+                </a>
+                <a class="grid-item">
+                  <div class="grid-poster">Fallout</div>
+                  <div class="grid-caption">Fallout</div>
+                  <div class="grid-subcaption">8 episodes</div>
+                </a>
+                <a class="grid-item">
+                  <div class="grid-poster">Ripley</div>
+                  <div class="grid-caption">Ripley</div>
+                  <div class="grid-subcaption">8 episodes</div>
+                </a>
+              </div>
+
+              <!-- Discreet archive link -->
+              <a class="archive-link">
+                <div>
+                  Stopped &amp; completed
+                  <div class="sub">Shows you finished or set aside</div>
+                </div>
+                <svg class="chevron" width="9" height="16" viewBox="0 0 9 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 1l6 7-6 7"/></svg>
+              </a>
+            </div>
+
+            <nav class="tabbar">
+              <a class="tab active">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg>
+                <span>Series</span>
+              </a>
+              <a class="tab">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/><path d="M7 4v5"/><path d="M17 4v5"/></svg>
+                <span>Movies</span>
+              </a>
+              <a class="tab">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18"/><path d="M8 3v4"/><path d="M16 3v4"/></svg>
+                <span>Calendar</span>
+              </a>
+              <a class="tab">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4.418 3.582-7 8-7s8 2.582 8 7"/></svg>
+                <span>Profile</span>
+              </a>
+            </nav>
+            <div class="home-indicator"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============================================================= -->
+      <!-- 2. TO WATCH — CAUGHT UP                                        -->
+      <!-- ============================================================= -->
+      <div class="frame-wrap">
+        <div class="frame-label">
+          To watch — caught up
+          <span>Nothing to catch up on · watchlist still shown</span>
+        </div>
+        <div class="phone">
+          <div class="viewport">
+            <div class="statusbar">
+              <span>9:41</span>
+              <span class="glyphs">
+                <svg width="18" height="12" viewBox="0 0 18 12" fill="currentColor"><rect x="0" y="7" width="3" height="5" rx="1"/><rect x="4" y="5" width="3" height="7" rx="1"/><rect x="8" y="3" width="3" height="9" rx="1"/><rect x="12" y="1" width="3" height="11" rx="1"/></svg>
+                <svg width="26" height="12" viewBox="0 0 26 12" fill="none"><rect x="1" y="1" width="21" height="10" rx="2.5" stroke="currentColor" opacity=".4"/><rect x="3" y="3" width="16" height="6" rx="1" fill="currentColor"/><rect x="23" y="4" width="1.5" height="4" rx=".75" fill="currentColor" opacity=".5"/></svg>
+              </span>
+            </div>
+            <div class="content">
+              <div class="app-header">
+                <h1>Series</h1>
+                <button class="add-btn" aria-label="Add series">
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+                </button>
+              </div>
+              <div class="segmented" role="tablist">
+                <button class="active" role="tab" aria-selected="true">To watch</button>
+                <button role="tab" aria-selected="false">Upcoming</button>
+              </div>
+
+              <div class="section-title">Continue watching</div>
+              <div class="inline-state">
+                <div class="state-icon">
+                  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8.5 12.5l2.5 2.5 4.5-5"/></svg>
+                </div>
+                <div class="state-title">You're all caught up</div>
+                <div class="state-sub">No unwatched episodes on the shows you're following. New ones will show up here.</div>
+              </div>
+
+              <div class="section-title">Watchlist <span class="count">· 3</span></div>
+              <div class="poster-grid">
+                <a class="grid-item">
+                  <div class="grid-poster">Dune: Prophecy</div>
+                  <div class="grid-caption">Dune: Prophecy</div>
+                  <div class="grid-subcaption">6 episodes</div>
+                </a>
+                <a class="grid-item">
+                  <div class="grid-poster">Fallout</div>
+                  <div class="grid-caption">Fallout</div>
+                  <div class="grid-subcaption">8 episodes</div>
+                </a>
+                <a class="grid-item">
+                  <div class="grid-poster">Ripley</div>
+                  <div class="grid-caption">Ripley</div>
+                  <div class="grid-subcaption">8 episodes</div>
+                </a>
+              </div>
+
+              <a class="archive-link">
+                <div>
+                  Stopped &amp; completed
+                  <div class="sub">Shows you finished or set aside</div>
+                </div>
+                <svg class="chevron" width="9" height="16" viewBox="0 0 9 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 1l6 7-6 7"/></svg>
+              </a>
+            </div>
+            <nav class="tabbar">
+              <a class="tab active">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg>
+                <span>Series</span>
+              </a>
+              <a class="tab">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/><path d="M7 4v5"/><path d="M17 4v5"/></svg>
+                <span>Movies</span>
+              </a>
+              <a class="tab">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18"/><path d="M8 3v4"/><path d="M16 3v4"/></svg>
+                <span>Calendar</span>
+              </a>
+              <a class="tab">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4.418 3.582-7 8-7s8 2.582 8 7"/></svg>
+                <span>Profile</span>
+              </a>
+            </nav>
+            <div class="home-indicator"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============================================================= -->
+      <!-- 3. TO WATCH — EMPTY (first run)                                -->
+      <!-- ============================================================= -->
+      <div class="frame-wrap">
+        <div class="frame-label">
+          To watch — empty (first run)
+          <span>No series tracked yet · CTA</span>
+        </div>
+        <div class="phone">
+          <div class="viewport">
+            <div class="statusbar">
+              <span>9:41</span>
+              <span class="glyphs">
+                <svg width="18" height="12" viewBox="0 0 18 12" fill="currentColor"><rect x="0" y="7" width="3" height="5" rx="1"/><rect x="4" y="5" width="3" height="7" rx="1"/><rect x="8" y="3" width="3" height="9" rx="1"/><rect x="12" y="1" width="3" height="11" rx="1"/></svg>
+                <svg width="26" height="12" viewBox="0 0 26 12" fill="none"><rect x="1" y="1" width="21" height="10" rx="2.5" stroke="currentColor" opacity=".4"/><rect x="3" y="3" width="16" height="6" rx="1" fill="currentColor"/><rect x="23" y="4" width="1.5" height="4" rx=".75" fill="currentColor" opacity=".5"/></svg>
+              </span>
+            </div>
+            <div class="content">
+              <div class="app-header">
+                <h1>Series</h1>
+                <button class="add-btn" aria-label="Add series">
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+                </button>
+              </div>
+              <div class="segmented" role="tablist">
+                <button class="active" role="tab" aria-selected="true">To watch</button>
+                <button role="tab" aria-selected="false">Upcoming</button>
+              </div>
+              <div class="state">
+                <div class="state-icon">
+                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg>
+                </div>
+                <div class="state-title">No series yet</div>
+                <div class="state-sub">Search TMDB to add the shows you're watching and track every episode.</div>
+                <button class="cta">Search for a series</button>
+              </div>
+            </div>
+            <nav class="tabbar">
+              <a class="tab active">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg>
+                <span>Series</span>
+              </a>
+              <a class="tab">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/><path d="M7 4v5"/><path d="M17 4v5"/></svg>
+                <span>Movies</span>
+              </a>
+              <a class="tab">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18"/><path d="M8 3v4"/><path d="M16 3v4"/></svg>
+                <span>Calendar</span>
+              </a>
+              <a class="tab">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4.418 3.582-7 8-7s8 2.582 8 7"/></svg>
+                <span>Profile</span>
+              </a>
+            </nav>
+            <div class="home-indicator"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============================================================= -->
+      <!-- 4. TO WATCH — LOADING                                          -->
+      <!-- ============================================================= -->
+      <div class="frame-wrap">
+        <div class="frame-label">
+          To watch — loading
+          <span>Skeleton grid while Supabase query resolves</span>
+        </div>
+        <div class="phone">
+          <div class="viewport">
+            <div class="statusbar">
+              <span>9:41</span>
+              <span class="glyphs">
+                <svg width="18" height="12" viewBox="0 0 18 12" fill="currentColor"><rect x="0" y="7" width="3" height="5" rx="1"/><rect x="4" y="5" width="3" height="7" rx="1"/><rect x="8" y="3" width="3" height="9" rx="1"/><rect x="12" y="1" width="3" height="11" rx="1"/></svg>
+                <svg width="26" height="12" viewBox="0 0 26 12" fill="none"><rect x="1" y="1" width="21" height="10" rx="2.5" stroke="currentColor" opacity=".4"/><rect x="3" y="3" width="16" height="6" rx="1" fill="currentColor"/><rect x="23" y="4" width="1.5" height="4" rx=".75" fill="currentColor" opacity=".5"/></svg>
+              </span>
+            </div>
+            <div class="content">
+              <div class="app-header">
+                <h1>Series</h1>
+                <button class="add-btn" aria-label="Add series">
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+                </button>
+              </div>
+              <div class="segmented" role="tablist">
+                <button class="active" role="tab" aria-selected="true">To watch</button>
+                <button role="tab" aria-selected="false">Upcoming</button>
+              </div>
+              <div class="section-title">Continue watching</div>
+              <div class="poster-grid">
+                <div class="grid-item">
+                  <div class="sk sk-poster"></div>
+                  <div class="sk sk-line" style="width: 80%"></div>
+                  <div class="sk sk-line" style="width: 50%"></div>
+                </div>
+                <div class="grid-item">
+                  <div class="sk sk-poster"></div>
+                  <div class="sk sk-line" style="width: 70%"></div>
+                  <div class="sk sk-line" style="width: 55%"></div>
+                </div>
+                <div class="grid-item">
+                  <div class="sk sk-poster"></div>
+                  <div class="sk sk-line" style="width: 85%"></div>
+                  <div class="sk sk-line" style="width: 45%"></div>
+                </div>
+                <div class="grid-item">
+                  <div class="sk sk-poster"></div>
+                  <div class="sk sk-line" style="width: 60%"></div>
+                  <div class="sk sk-line" style="width: 50%"></div>
+                </div>
+                <div class="grid-item">
+                  <div class="sk sk-poster"></div>
+                  <div class="sk sk-line" style="width: 75%"></div>
+                  <div class="sk sk-line" style="width: 40%"></div>
+                </div>
+                <div class="grid-item">
+                  <div class="sk sk-poster"></div>
+                  <div class="sk sk-line" style="width: 65%"></div>
+                  <div class="sk sk-line" style="width: 55%"></div>
+                </div>
+              </div>
+            </div>
+            <nav class="tabbar">
+              <a class="tab active">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg>
+                <span>Series</span>
+              </a>
+              <a class="tab">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/><path d="M7 4v5"/><path d="M17 4v5"/></svg>
+                <span>Movies</span>
+              </a>
+              <a class="tab">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18"/><path d="M8 3v4"/><path d="M16 3v4"/></svg>
+                <span>Calendar</span>
+              </a>
+              <a class="tab">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4.418 3.582-7 8-7s8 2.582 8 7"/></svg>
+                <span>Profile</span>
+              </a>
+            </nav>
+            <div class="home-indicator"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============================================================= -->
+      <!-- 5. TO WATCH — ERROR                                            -->
+      <!-- ============================================================= -->
+      <div class="frame-wrap">
+        <div class="frame-label">
+          To watch — error
+          <span>Supabase load failed · retry</span>
+        </div>
+        <div class="phone">
+          <div class="viewport">
+            <div class="statusbar">
+              <span>9:41</span>
+              <span class="glyphs">
+                <svg width="18" height="12" viewBox="0 0 18 12" fill="currentColor"><rect x="0" y="7" width="3" height="5" rx="1"/><rect x="4" y="5" width="3" height="7" rx="1"/><rect x="8" y="3" width="3" height="9" rx="1"/><rect x="12" y="1" width="3" height="11" rx="1"/></svg>
+                <svg width="26" height="12" viewBox="0 0 26 12" fill="none"><rect x="1" y="1" width="21" height="10" rx="2.5" stroke="currentColor" opacity=".4"/><rect x="3" y="3" width="16" height="6" rx="1" fill="currentColor"/><rect x="23" y="4" width="1.5" height="4" rx=".75" fill="currentColor" opacity=".5"/></svg>
+              </span>
+            </div>
+            <div class="content">
+              <div class="app-header">
+                <h1>Series</h1>
+                <button class="add-btn" aria-label="Add series">
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+                </button>
+              </div>
+              <div class="segmented" role="tablist">
+                <button class="active" role="tab" aria-selected="true">To watch</button>
+                <button role="tab" aria-selected="false">Upcoming</button>
+              </div>
+              <div class="state">
+                <div class="state-icon">
+                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5"/><path d="M12 16h.01"/></svg>
+                </div>
+                <div class="state-title">Couldn't load your series</div>
+                <div class="state-sub">Something went wrong reaching the server. Check your connection and try again.</div>
+                <button class="cta">Try again</button>
+              </div>
+            </div>
+            <nav class="tabbar">
+              <a class="tab active">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg>
+                <span>Series</span>
+              </a>
+              <a class="tab">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/><path d="M7 4v5"/><path d="M17 4v5"/></svg>
+                <span>Movies</span>
+              </a>
+              <a class="tab">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18"/><path d="M8 3v4"/><path d="M16 3v4"/></svg>
+                <span>Calendar</span>
+              </a>
+              <a class="tab">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4.418 3.582-7 8-7s8 2.582 8 7"/></svg>
+                <span>Profile</span>
+              </a>
+            </nav>
+            <div class="home-indicator"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============================================================= -->
+      <!-- 6. UPCOMING — POPULATED                                        -->
+      <!-- ============================================================= -->
+      <div class="frame-wrap">
+        <div class="frame-label">
+          Upcoming — populated
+          <span>Started series only · grouped by proximity · countdown</span>
+        </div>
+        <div class="phone">
+          <div class="viewport">
+            <div class="statusbar">
+              <span>9:41</span>
+              <span class="glyphs">
+                <svg width="18" height="12" viewBox="0 0 18 12" fill="currentColor"><rect x="0" y="7" width="3" height="5" rx="1"/><rect x="4" y="5" width="3" height="7" rx="1"/><rect x="8" y="3" width="3" height="9" rx="1"/><rect x="12" y="1" width="3" height="11" rx="1"/></svg>
+                <svg width="26" height="12" viewBox="0 0 26 12" fill="none"><rect x="1" y="1" width="21" height="10" rx="2.5" stroke="currentColor" opacity=".4"/><rect x="3" y="3" width="16" height="6" rx="1" fill="currentColor"/><rect x="23" y="4" width="1.5" height="4" rx=".75" fill="currentColor" opacity=".5"/></svg>
+              </span>
+            </div>
+            <div class="content">
+              <div class="app-header">
+                <h1>Series</h1>
+                <button class="add-btn" aria-label="Add series">
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+                </button>
+              </div>
+              <div class="segmented" role="tablist">
+                <button role="tab" aria-selected="false">To watch</button>
+                <button class="active" role="tab" aria-selected="true">Upcoming</button>
+              </div>
+
+              <div class="group-header">Today</div>
+              <div class="up-group">
+                <a class="up-row">
+                  <div class="up-poster">The Diplomat</div>
+                  <div class="up-body">
+                    <div class="up-title">The Diplomat</div>
+                    <div class="up-ep">S2 E1 · Optics</div>
+                  </div>
+                  <div class="countdown"><div class="now">Today</div></div>
+                </a>
+              </div>
+
+              <div class="group-header">Tomorrow</div>
+              <div class="up-group">
+                <a class="up-row">
+                  <div class="up-poster">Severance</div>
+                  <div class="up-body">
+                    <div class="up-title">Severance</div>
+                    <div class="up-ep">S2 E4 · Woe's Hollow</div>
+                  </div>
+                  <div class="countdown"><div class="num">1</div><div class="lbl">day</div></div>
+                </a>
+              </div>
+
+              <div class="group-header">This week</div>
+              <div class="up-group">
+                <a class="up-row">
+                  <div class="up-poster">The Last of Us</div>
+                  <div class="up-body">
+                    <div class="up-title">The Last of Us</div>
+                    <div class="up-ep">S2 E1 · Future Days</div>
+                  </div>
+                  <div class="countdown"><div class="num">3</div><div class="lbl">days</div></div>
+                </a>
+                <a class="up-row">
+                  <div class="up-poster">Slow Horses</div>
+                  <div class="up-body">
+                    <div class="up-title">Slow Horses</div>
+                    <div class="up-ep">S4 E6 · Hello Goodbye</div>
+                  </div>
+                  <div class="countdown"><div class="num">5</div><div class="lbl">days</div></div>
+                </a>
+              </div>
+
+              <div class="group-header">Later</div>
+              <div class="up-group">
+                <a class="up-row">
+                  <div class="up-poster">The Bear</div>
+                  <div class="up-body">
+                    <div class="up-title">The Bear</div>
+                    <div class="up-ep">S4 E1 · TBA</div>
+                  </div>
+                  <div class="countdown"><div class="num">18</div><div class="lbl">days</div></div>
+                </a>
+                <a class="up-row">
+                  <div class="up-poster">Andor</div>
+                  <div class="up-body">
+                    <div class="up-title">Andor</div>
+                    <div class="up-ep">S2 E1 · TBA</div>
+                  </div>
+                  <div class="countdown"><div class="num">42</div><div class="lbl">days</div></div>
+                </a>
+              </div>
+            </div>
+            <nav class="tabbar">
+              <a class="tab active">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg>
+                <span>Series</span>
+              </a>
+              <a class="tab">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/><path d="M7 4v5"/><path d="M17 4v5"/></svg>
+                <span>Movies</span>
+              </a>
+              <a class="tab">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18"/><path d="M8 3v4"/><path d="M16 3v4"/></svg>
+                <span>Calendar</span>
+              </a>
+              <a class="tab">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4.418 3.582-7 8-7s8 2.582 8 7"/></svg>
+                <span>Profile</span>
+              </a>
+            </nav>
+            <div class="home-indicator"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============================================================= -->
+      <!-- 7. UPCOMING — EMPTY                                            -->
+      <!-- ============================================================= -->
+      <div class="frame-wrap">
+        <div class="frame-label">
+          Upcoming — empty
+          <span>No scheduled episodes for started series</span>
+        </div>
+        <div class="phone">
+          <div class="viewport">
+            <div class="statusbar">
+              <span>9:41</span>
+              <span class="glyphs">
+                <svg width="18" height="12" viewBox="0 0 18 12" fill="currentColor"><rect x="0" y="7" width="3" height="5" rx="1"/><rect x="4" y="5" width="3" height="7" rx="1"/><rect x="8" y="3" width="3" height="9" rx="1"/><rect x="12" y="1" width="3" height="11" rx="1"/></svg>
+                <svg width="26" height="12" viewBox="0 0 26 12" fill="none"><rect x="1" y="1" width="21" height="10" rx="2.5" stroke="currentColor" opacity=".4"/><rect x="3" y="3" width="16" height="6" rx="1" fill="currentColor"/><rect x="23" y="4" width="1.5" height="4" rx=".75" fill="currentColor" opacity=".5"/></svg>
+              </span>
+            </div>
+            <div class="content">
+              <div class="app-header">
+                <h1>Series</h1>
+                <button class="add-btn" aria-label="Add series">
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+                </button>
+              </div>
+              <div class="segmented" role="tablist">
+                <button role="tab" aria-selected="false">To watch</button>
+                <button class="active" role="tab" aria-selected="true">Upcoming</button>
+              </div>
+              <div class="state">
+                <div class="state-icon">
+                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18"/><path d="M8 3v4"/><path d="M16 3v4"/></svg>
+                </div>
+                <div class="state-title">Nothing scheduled</div>
+                <div class="state-sub">None of the shows you're watching have an upcoming episode date yet.</div>
+              </div>
+            </div>
+            <nav class="tabbar">
+              <a class="tab active">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg>
+                <span>Series</span>
+              </a>
+              <a class="tab">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/><path d="M7 4v5"/><path d="M17 4v5"/></svg>
+                <span>Movies</span>
+              </a>
+              <a class="tab">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18"/><path d="M8 3v4"/><path d="M16 3v4"/></svg>
+                <span>Calendar</span>
+              </a>
+              <a class="tab">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4.418 3.582-7 8-7s8 2.582 8 7"/></svg>
+                <span>Profile</span>
+              </a>
+            </nav>
+            <div class="home-indicator"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============================================================= -->
+      <!-- 8. SERIES DETAIL — POPULATED (in progress)                     -->
+      <!-- ============================================================= -->
+      <div class="frame-wrap">
+        <div class="frame-label">
+          Series detail — in progress
+          <span>Backdrop + Continue watching + season accordions</span>
+        </div>
+        <div class="phone">
+          <div class="viewport">
+            <div class="statusbar">
+              <span>9:41</span>
+              <span class="glyphs">
+                <svg width="18" height="12" viewBox="0 0 18 12" fill="currentColor"><rect x="0" y="7" width="3" height="5" rx="1"/><rect x="4" y="5" width="3" height="7" rx="1"/><rect x="8" y="3" width="3" height="9" rx="1"/><rect x="12" y="1" width="3" height="11" rx="1"/></svg>
+                <svg width="26" height="12" viewBox="0 0 26 12" fill="none"><rect x="1" y="1" width="21" height="10" rx="2.5" stroke="currentColor" opacity=".4"/><rect x="3" y="3" width="16" height="6" rx="1" fill="currentColor"/><rect x="23" y="4" width="1.5" height="4" rx=".75" fill="currentColor" opacity=".5"/></svg>
+              </span>
+            </div>
+            <div class="detail-content">
+              <div class="hero">
+                <div class="hero-placeholder">BACKDROP · w780</div>
+                <button class="hero-back" aria-label="Back">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
+                </button>
+                <div class="hero-gradient"></div>
+                <div class="hero-content">
+                  <div class="detail-title">Severance</div>
+                  <div class="detail-meta">
+                    <span>2 seasons</span>
+                    <span class="dot">·</span>
+                    <span class="meta-status"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/></svg>Returning</span>
+                    <span class="dot">·</span>
+                    <span>Apple TV+</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="continue-card">
+                <div class="continue-still">STILL</div>
+                <div class="continue-body">
+                  <div class="continue-kicker">Next up</div>
+                  <div class="continue-ep">S2 E3 · Who Is Alive?</div>
+                  <div class="continue-air">Aired Feb 7, 2025</div>
+                </div>
+                <button class="check-hit" aria-label="Mark watched">
+                  <span class="check"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-11"/></svg></span>
+                </button>
+              </div>
+
+              <div class="section-title">Seasons</div>
+              <div class="seasons">
+                <!-- Completed season (collapsed) -->
+                <div class="accordion">
+                  <div class="accordion-header">
+                    <span class="season-name">Season 1</span>
+                    <span class="season-progress complete">9/9</span>
+                    <span class="season-check"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8.5 12.5l2.5 2.5 4.5-5"/></svg></span>
+                    <svg class="accordion-chevron" width="9" height="16" viewBox="0 0 9 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 1l6 7-6 7"/></svg>
+                  </div>
+                </div>
+
+                <!-- In-progress season (expanded) -->
+                <div class="accordion open">
+                  <div class="accordion-header">
+                    <span class="season-name">Season 2</span>
+                    <span class="season-progress">2/10</span>
+                    <svg class="accordion-chevron" width="9" height="16" viewBox="0 0 9 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 1l6 7-6 7"/></svg>
+                  </div>
+                  <div class="episode-list">
+                    <div class="episode-row">
+                      <span class="ep-num">E1</span>
+                      <div class="ep-body">
+                        <div class="ep-name">Hello, Ms. Cobel</div>
+                        <div class="ep-air">Jan 17, 2025</div>
+                      </div>
+                      <button class="check-hit" aria-label="Mark unwatched">
+                        <span class="check watched"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-11"/></svg></span>
+                      </button>
+                    </div>
+                    <div class="episode-row">
+                      <span class="ep-num">E2</span>
+                      <div class="ep-body">
+                        <div class="ep-name">Goodbye, Mrs. Selvig</div>
+                        <div class="ep-air">Jan 24, 2025</div>
+                      </div>
+                      <button class="check-hit" aria-label="Mark unwatched">
+                        <span class="check watched"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-11"/></svg></span>
+                      </button>
+                    </div>
+                    <div class="episode-row">
+                      <span class="ep-num">E3</span>
+                      <div class="ep-body">
+                        <div class="ep-name unwatched">Who Is Alive?</div>
+                        <div class="ep-air">Jan 31, 2025</div>
+                      </div>
+                      <button class="check-hit" aria-label="Mark watched">
+                        <span class="check"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-11"/></svg></span>
+                      </button>
+                    </div>
+                    <div class="episode-row">
+                      <span class="ep-num">E4</span>
+                      <div class="ep-body">
+                        <div class="ep-name unwatched">Woe's Hollow</div>
+                        <div class="ep-air upcoming">Airs tomorrow</div>
+                      </div>
+                      <button class="check-hit" aria-label="Mark watched">
+                        <span class="check"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-11"/></svg></span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <nav class="tabbar">
+              <a class="tab active">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg>
+                <span>Series</span>
+              </a>
+              <a class="tab">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/><path d="M7 4v5"/><path d="M17 4v5"/></svg>
+                <span>Movies</span>
+              </a>
+              <a class="tab">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18"/><path d="M8 3v4"/><path d="M16 3v4"/></svg>
+                <span>Calendar</span>
+              </a>
+              <a class="tab">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4.418 3.582-7 8-7s8 2.582 8 7"/></svg>
+                <span>Profile</span>
+              </a>
+            </nav>
+            <div class="home-indicator"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============================================================= -->
+      <!-- 9. SERIES DETAIL — COMPLETED                                   -->
+      <!-- ============================================================= -->
+      <div class="frame-wrap">
+        <div class="frame-label">
+          Series detail — completed
+          <span>All seasons watched · no "continue" card</span>
+        </div>
+        <div class="phone">
+          <div class="viewport">
+            <div class="statusbar">
+              <span>9:41</span>
+              <span class="glyphs">
+                <svg width="18" height="12" viewBox="0 0 18 12" fill="currentColor"><rect x="0" y="7" width="3" height="5" rx="1"/><rect x="4" y="5" width="3" height="7" rx="1"/><rect x="8" y="3" width="3" height="9" rx="1"/><rect x="12" y="1" width="3" height="11" rx="1"/></svg>
+                <svg width="26" height="12" viewBox="0 0 26 12" fill="none"><rect x="1" y="1" width="21" height="10" rx="2.5" stroke="currentColor" opacity=".4"/><rect x="3" y="3" width="16" height="6" rx="1" fill="currentColor"/><rect x="23" y="4" width="1.5" height="4" rx=".75" fill="currentColor" opacity=".5"/></svg>
+              </span>
+            </div>
+            <div class="detail-content">
+              <div class="hero">
+                <div class="hero-placeholder">BACKDROP · w780</div>
+                <button class="hero-back" aria-label="Back">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
+                </button>
+                <div class="hero-gradient"></div>
+                <div class="hero-content">
+                  <div class="detail-title">Chernobyl</div>
+                  <div class="detail-meta">
+                    <span>1 season</span>
+                    <span class="dot">·</span>
+                    <span class="meta-status ended"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/></svg>Ended</span>
+                    <span class="dot">·</span>
+                    <span>HBO</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="inline-state" style="padding: 20px 40px 4px;">
+                <div class="state-icon">
+                  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8.5 12.5l2.5 2.5 4.5-5"/></svg>
+                </div>
+                <div class="state-title">You finished this series</div>
+                <div class="state-sub">All 5 episodes watched.</div>
+              </div>
+
+              <div class="section-title">Seasons</div>
+              <div class="seasons">
+                <div class="accordion open">
+                  <div class="accordion-header">
+                    <span class="season-name">Season 1</span>
+                    <span class="season-progress complete">5/5</span>
+                    <span class="season-check"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8.5 12.5l2.5 2.5 4.5-5"/></svg></span>
+                    <svg class="accordion-chevron" width="9" height="16" viewBox="0 0 9 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 1l6 7-6 7"/></svg>
+                  </div>
+                  <div class="episode-list">
+                    <div class="episode-row">
+                      <span class="ep-num">E1</span>
+                      <div class="ep-body">
+                        <div class="ep-name">1:23:45</div>
+                        <div class="ep-air">May 6, 2019</div>
+                      </div>
+                      <button class="check-hit" aria-label="Mark unwatched">
+                        <span class="check watched"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-11"/></svg></span>
+                      </button>
+                    </div>
+                    <div class="episode-row">
+                      <span class="ep-num">E2</span>
+                      <div class="ep-body">
+                        <div class="ep-name">Please Remain Calm</div>
+                        <div class="ep-air">May 13, 2019</div>
+                      </div>
+                      <button class="check-hit" aria-label="Mark unwatched">
+                        <span class="check watched"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-11"/></svg></span>
+                      </button>
+                    </div>
+                    <div class="episode-row">
+                      <span class="ep-num">E3</span>
+                      <div class="ep-body">
+                        <div class="ep-name">Open Wide, O Earth</div>
+                        <div class="ep-air">May 20, 2019</div>
+                      </div>
+                      <button class="check-hit" aria-label="Mark unwatched">
+                        <span class="check watched"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-11"/></svg></span>
+                      </button>
+                    </div>
+                    <div class="episode-row">
+                      <span class="ep-num">E4</span>
+                      <div class="ep-body">
+                        <div class="ep-name">The Happiness of All Mankind</div>
+                        <div class="ep-air">May 27, 2019</div>
+                      </div>
+                      <button class="check-hit" aria-label="Mark unwatched">
+                        <span class="check watched"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-11"/></svg></span>
+                      </button>
+                    </div>
+                    <div class="episode-row">
+                      <span class="ep-num">E5</span>
+                      <div class="ep-body">
+                        <div class="ep-name">Vichnaya Pamyat</div>
+                        <div class="ep-air">Jun 3, 2019</div>
+                      </div>
+                      <button class="check-hit" aria-label="Mark unwatched">
+                        <span class="check watched"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-11"/></svg></span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <nav class="tabbar">
+              <a class="tab active">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg>
+                <span>Series</span>
+              </a>
+              <a class="tab">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/><path d="M7 4v5"/><path d="M17 4v5"/></svg>
+                <span>Movies</span>
+              </a>
+              <a class="tab">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18"/><path d="M8 3v4"/><path d="M16 3v4"/></svg>
+                <span>Calendar</span>
+              </a>
+              <a class="tab">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4.418 3.582-7 8-7s8 2.582 8 7"/></svg>
+                <span>Profile</span>
+              </a>
+            </nav>
+            <div class="home-indicator"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============================================================= -->
+      <!-- 10. SERIES DETAIL — LOADING                                    -->
+      <!-- ============================================================= -->
+      <div class="frame-wrap">
+        <div class="frame-label">
+          Series detail — loading
+          <span>Backdrop + skeleton while TMDB details load</span>
+        </div>
+        <div class="phone">
+          <div class="viewport">
+            <div class="statusbar">
+              <span>9:41</span>
+              <span class="glyphs">
+                <svg width="18" height="12" viewBox="0 0 18 12" fill="currentColor"><rect x="0" y="7" width="3" height="5" rx="1"/><rect x="4" y="5" width="3" height="7" rx="1"/><rect x="8" y="3" width="3" height="9" rx="1"/><rect x="12" y="1" width="3" height="11" rx="1"/></svg>
+                <svg width="26" height="12" viewBox="0 0 26 12" fill="none"><rect x="1" y="1" width="21" height="10" rx="2.5" stroke="currentColor" opacity=".4"/><rect x="3" y="3" width="16" height="6" rx="1" fill="currentColor"/><rect x="23" y="4" width="1.5" height="4" rx=".75" fill="currentColor" opacity=".5"/></svg>
+              </span>
+            </div>
+            <div class="detail-content">
+              <div class="hero">
+                <button class="hero-back" aria-label="Back">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
+                </button>
+                <div class="hero-gradient"></div>
+                <div class="hero-content">
+                  <div class="sk sk-line" style="width: 55%; height: 24px"></div>
+                  <div class="sk sk-line" style="width: 70%; height: 12px; margin-top: 10px"></div>
+                </div>
+              </div>
+              <div class="section-title">Seasons</div>
+              <div class="seasons">
+                <div class="accordion" style="padding: 16px 12px;">
+                  <div class="sk sk-line" style="width: 40%; height: 16px"></div>
+                </div>
+                <div class="accordion" style="padding: 16px 12px;">
+                  <div class="sk sk-line" style="width: 40%; height: 16px"></div>
+                </div>
+                <div class="accordion" style="padding: 16px 12px;">
+                  <div class="sk sk-line" style="width: 40%; height: 16px"></div>
+                </div>
+              </div>
+            </div>
+            <nav class="tabbar">
+              <a class="tab active">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg>
+                <span>Series</span>
+              </a>
+              <a class="tab">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/><path d="M7 4v5"/><path d="M17 4v5"/></svg>
+                <span>Movies</span>
+              </a>
+              <a class="tab">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18"/><path d="M8 3v4"/><path d="M16 3v4"/></svg>
+                <span>Calendar</span>
+              </a>
+              <a class="tab">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4.418 3.582-7 8-7s8 2.582 8 7"/></svg>
+                <span>Profile</span>
+              </a>
+            </nav>
+            <div class="home-indicator"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============================================================= -->
+      <!-- 11. SERIES DETAIL — ERROR                                      -->
+      <!-- ============================================================= -->
+      <div class="frame-wrap">
+        <div class="frame-label">
+          Series detail — error
+          <span>TMDB details request failed · retry</span>
+        </div>
+        <div class="phone">
+          <div class="viewport">
+            <div class="statusbar">
+              <span>9:41</span>
+              <span class="glyphs">
+                <svg width="18" height="12" viewBox="0 0 18 12" fill="currentColor"><rect x="0" y="7" width="3" height="5" rx="1"/><rect x="4" y="5" width="3" height="7" rx="1"/><rect x="8" y="3" width="3" height="9" rx="1"/><rect x="12" y="1" width="3" height="11" rx="1"/></svg>
+                <svg width="26" height="12" viewBox="0 0 26 12" fill="none"><rect x="1" y="1" width="21" height="10" rx="2.5" stroke="currentColor" opacity=".4"/><rect x="3" y="3" width="16" height="6" rx="1" fill="currentColor"/><rect x="23" y="4" width="1.5" height="4" rx=".75" fill="currentColor" opacity=".5"/></svg>
+              </span>
+            </div>
+            <div class="detail-content">
+              <div class="hero" style="height: 120px;">
+                <button class="hero-back" aria-label="Back">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
+                </button>
+                <div class="hero-gradient"></div>
+              </div>
+              <div class="state" style="min-height: 380px;">
+                <div class="state-icon">
+                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5"/><path d="M12 16h.01"/></svg>
+                </div>
+                <div class="state-title">Couldn't load this series</div>
+                <div class="state-sub">We couldn't reach TMDB for the season and episode details. Try again in a moment.</div>
+                <button class="cta">Try again</button>
+              </div>
+            </div>
+            <nav class="tabbar">
+              <a class="tab active">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg>
+                <span>Series</span>
+              </a>
+              <a class="tab">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/><path d="M7 4v5"/><path d="M17 4v5"/></svg>
+                <span>Movies</span>
+              </a>
+              <a class="tab">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18"/><path d="M8 3v4"/><path d="M16 3v4"/></svg>
+                <span>Calendar</span>
+              </a>
+              <a class="tab">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4.418 3.582-7 8-7s8 2.582 8 7"/></svg>
+                <span>Profile</span>
+              </a>
+            </nav>
+            <div class="home-indicator"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p class="caption-note">
+      Posters &amp; backdrops render as design-system gray placeholders (self-contained file).
+      In the app, <code>next/image</code> loads TMDB thumbnails — <code>w185</code> for grid posters,
+      <code>w780</code> for the detail backdrop; the gray block is the loading / missing-image state.
+      The unwatched-count badge, "next up" episode, season progress, and countdowns are computed from
+      episode-level watch data. See <code>README.md</code> for the full component &rarr; Tailwind mapping.
+    </p>
+  </body>
+</html>
