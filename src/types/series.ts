@@ -14,3 +14,66 @@ export interface SeriesSearchResult {
 
 /** Result of the `addSeries` server action. */
 export type AddSeriesResult = { ok: true } | { ok: false; error: string };
+
+/** The next unwatched episode for a tracked series, if any. */
+export interface NextEpisode {
+  seasonNumber: number;
+  episodeNumber: number;
+  name: string | null;
+}
+
+/** A tracked series enriched with cached metadata and watch progress. */
+export interface SeriesWithProgress {
+  tmdbId: number;
+  status: 'watching' | 'stopped' | 'watchlist';
+  title: string;
+  posterPath: string | null;
+  unwatchedCount: number;
+  totalEpisodes: number;
+  nextEpisode: NextEpisode | null;
+}
+
+/** A single upcoming episode for the calendar view. */
+export interface UpcomingEpisode {
+  tmdbId: number;
+  title: string;
+  posterPath: string | null;
+  seasonNumber: number;
+  episodeNumber: number;
+  name: string | null;
+  airDate: string;
+}
+
+/** Watch progress for one season of a series. */
+export interface SeasonProgress {
+  seasonNumber: number;
+  watchedCount: number;
+  totalCount: number;
+}
+
+/** A single episode enriched with the current user's watch status. */
+export interface EpisodeWithStatus {
+  seasonNumber: number;
+  episodeNumber: number;
+  name: string | null;
+  airDate: string | null;
+  stillPath: string | null;
+  watched: boolean;
+  watchedAt: string | null;
+}
+
+/** Full series detail view: cached metadata plus per-season and per-episode progress. */
+export interface SeriesDetail {
+  tmdbId: number;
+  title: string;
+  overview: string | null;
+  posterPath: string | null;
+  backdropPath: string | null;
+  status: string | null;
+  firstAirDate: string | null;
+  seasons: SeasonProgress[];
+  episodes: EpisodeWithStatus[];
+}
+
+/** Result of the `markSeasonWatched` server action. */
+export type MarkSeasonWatchedResult = { ok: true; marked: number } | { ok: false; error: string };

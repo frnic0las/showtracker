@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import { getSeriesDetails, TmdbApiError } from '@/lib/tmdb/client';
-import type { AddSeriesResult } from '@/types/series';
+import type { AddSeriesResult, MarkSeasonWatchedResult } from '@/types/series';
 
 /**
  * Adds a TV series to the current user's tracking list with status
@@ -73,4 +73,73 @@ export async function addSeries(tmdbId: number): Promise<AddSeriesResult> {
 
   revalidatePath('/series');
   return { ok: true };
+}
+
+/**
+ * Marks every cached episode of one season as watched for the current user.
+ * Idempotent: the `user_episodes` upsert ignores conflicts on the
+ * `(user_id, tmdb_series_id, season_number, episode_number)` unique
+ * constraint, and with `ignoreDuplicates` Supabase returns only the rows it
+ * actually inserted — so `marked` reflects episodes that were previously
+ * unwatched, and re-running this action for an already-watched season is a
+ * safe no-op.
+ */
+export async function markSeasonWatched(
+  tmdbSeriesId: number,
+  seasonNumber: number,
+): Promise<MarkSeasonWatchedResult> {
+  if (!Number.isInteger(tmdbSeriesId) || tmdbSeriesId < 1) {
+    return { ok: false, error: 'Invalid series or season.' };
+  }
+  // Season 0 (specials) is excluded from the progress model.
+  if (!Number.isInteger(seasonNumber) || seasonNumber < 1) {
+    return { ok: false, error: 'Invalid series or season.' };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { ok: false, error: 'You must be signed in.' };
+  }
+
+  const { data: episodes, error: episodesError } = await supabase
+    .from('episodes_cache')
+    .select('episode_number')
+    .eq('tmdb_series_id', tmdbSeriesId)
+    .eq('season_number', seasonNumber)
+    .overrideTypes<{ episode_number: number }[], { merge: false }>();
+
+  if (episodesError) {
+    return { ok: false, error: 'Could not load season episodes. Please try again.' };
+  }
+  if (!episodes || episodes.length === 0) {
+    return { ok: true, marked: 0 };
+  }
+
+  const rows = episodes.map((episode) => ({
+    user_id: user.id,
+    tmdb_series_id: tmdbSeriesId,
+    season_number: seasonNumber,
+    episode_number: episode.episode_number,
+  }));
+
+  const { data, error } = await supabase
+    .from('user_episodes')
+    .upsert(rows, {
+      onConflict: 'user_id,tmdb_series_id,season_number,episode_number',
+      ignoreDuplicates: true,
+    })
+    .select('id');
+
+  if (error) {
+    return { ok: false, error: 'Could not mark season as watched. Please try again.' };
+  }
+
+  revalidatePath(`/series/${tmdbSeriesId}`);
+  revalidatePath('/series');
+
+  return { ok: true, marked: data?.length ?? 0 };
 }
