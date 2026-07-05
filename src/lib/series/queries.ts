@@ -182,6 +182,54 @@ export async function getUpcomingEpisodes(userId: string): Promise<UpcomingEpiso
   return result;
 }
 
+interface CatchUpRpcRow {
+  tmdb_id: number;
+  title: string;
+  poster_path: string | null;
+  season_number: number;
+  episode_number: number;
+  name: string | null;
+  air_date: string;
+}
+
+/**
+ * Returns already-aired-but-unwatched episodes for every series the user has
+ * marked as `watching`, ordered by air date ascending, for the calendar
+ * view's "Catch up" section. Reuses the `UpcomingEpisode` shape since the
+ * fields are identical; only the selection criteria differ (aired and
+ * unwatched vs. not yet aired).
+ *
+ * The join and anti-join run inside the `get_user_catchup_episodes` Postgres
+ * function (migration 003) rather than in the app: computing this
+ * client-side would transfer every episode and watched row across all
+ * watching series — tens of thousands after a bulk import — and PostgREST's
+ * default 1000-row cap would silently truncate those reads, corrupting the
+ * result.
+ */
+export async function getCatchUpEpisodes(userId: string): Promise<UpcomingEpisode[]> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase.rpc('get_user_catchup_episodes', {
+    p_user_id: userId,
+  });
+
+  if (error) {
+    throw new Error(`Could not load episodes to catch up on: ${error.message}`);
+  }
+
+  const rows = (data ?? []) as CatchUpRpcRow[];
+
+  return rows.map((row) => ({
+    tmdbId: row.tmdb_id,
+    title: row.title,
+    posterPath: row.poster_path,
+    seasonNumber: row.season_number,
+    episodeNumber: row.episode_number,
+    name: row.name,
+    airDate: row.air_date,
+  }));
+}
+
 interface SeriesCacheFullRow {
   tmdb_id: number;
   title: string;

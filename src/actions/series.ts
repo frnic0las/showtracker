@@ -111,6 +111,7 @@ export async function addSeries(tmdbId: number): Promise<AddSeriesResult> {
   }
 
   revalidatePath('/series');
+  revalidatePath('/calendar');
   return { ok: true };
 }
 
@@ -176,6 +177,7 @@ export async function markSeasonWatched(
 
   revalidatePath(`/series/${tmdbSeriesId}`);
   revalidatePath('/series');
+  revalidatePath('/calendar');
 
   return { ok: true, marked: data?.length ?? 0 };
 }
@@ -228,6 +230,7 @@ export async function toggleEpisodeWatched(
   if (deleted && deleted.length > 0) {
     revalidatePath(`/series/${tmdbSeriesId}`);
     revalidatePath('/series');
+    revalidatePath('/calendar');
     return { ok: true, watched: false };
   }
 
@@ -250,6 +253,7 @@ export async function toggleEpisodeWatched(
 
   revalidatePath(`/series/${tmdbSeriesId}`);
   revalidatePath('/series');
+  revalidatePath('/calendar');
   return { ok: true, watched: true };
 }
 
@@ -292,6 +296,7 @@ export async function unmarkSeasonWatched(
 
   revalidatePath(`/series/${tmdbSeriesId}`);
   revalidatePath('/series');
+  revalidatePath('/calendar');
 
   return { ok: true, unmarked: data?.length ?? 0 };
 }
