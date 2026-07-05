@@ -44,13 +44,23 @@ export default async function MoviesPage() {
         <MoviesSearch addedIds={movieIds} />
       </header>
 
-      <CenteredState
-        icon={<MoviesEmptyIcon />}
-        title="No movies yet"
-        description="Search for a movie to add it to your watchlist or mark it watched."
-      >
-        <MoviesSearch addedIds={movieIds} variant="cta" />
-      </CenteredState>
+      {movieIds.length === 0 ? (
+        <CenteredState
+          icon={<MoviesEmptyIcon />}
+          title="No movies yet"
+          description="Search for a movie to add it to your watchlist or mark it watched."
+        >
+          <MoviesSearch addedIds={movieIds} variant="cta" />
+        </CenteredState>
+      ) : (
+        <CenteredState
+          icon={<MoviesEmptyIcon />}
+          title={`${movieIds.length} ${movieIds.length === 1 ? 'movie' : 'movies'} tracked`}
+          description="Movies you've added to your watchlist or marked watched. The full list view is on its way."
+        >
+          <MoviesSearch addedIds={movieIds} variant="cta" />
+        </CenteredState>
+      )}
     </div>
   );
 }

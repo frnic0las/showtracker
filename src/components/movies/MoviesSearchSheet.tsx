@@ -152,7 +152,7 @@ export function MoviesSearchSheet({ addedIds }: MoviesSearchSheetProps) {
                   ) : isPending ? (
                     <span className="shrink-0 text-[15px] text-text-secondary">Adding…</span>
                   ) : (
-                    <div className="flex shrink-0 flex-col gap-1.5">
+                    <div className="flex shrink-0 flex-col gap-2">
                       <button
                         type="button"
                         onClick={() => handleAdd(item, 'watchlist')}

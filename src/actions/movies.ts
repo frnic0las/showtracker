@@ -44,6 +44,10 @@ export async function addMovie(tmdbId: number, status: MovieAddStatus): Promise<
     if (error instanceof TmdbApiError && error.status === 404) {
       return { ok: false, error: 'Movie not found on TMDB.' };
     }
+    // Rate limits (429), TMDB 5xx, and network failures all land here — log so
+    // they're diagnosable in production instead of vanishing behind the
+    // generic message.
+    console.error('TMDB movie fetch failed:', error);
     return { ok: false, error: 'Could not reach TMDB. Please try again.' };
   }
 
