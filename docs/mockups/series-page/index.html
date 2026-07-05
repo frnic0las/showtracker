@@ -1,0 +1,1104 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ShowTracker — Series list + add series flow (mockups)</title>
+    <style>
+      /* ------------------------------------------------------------------ *
+       * Design tokens — mirrors docs/DESIGN_SYSTEM.md and src/app/globals.css
+       * ------------------------------------------------------------------ */
+      :root {
+        --bg-primary: #ffffff;
+        --bg-secondary: #f2f2f7;
+        --bg-elevated: #ffffff;
+        --text-primary: #000000;
+        --text-secondary: rgba(60, 60, 67, 0.6);
+        --text-tertiary: rgba(60, 60, 67, 0.3);
+        --separator: rgba(60, 60, 67, 0.12);
+        --accent: #007aff;
+        --accent-green: #34c759;
+        --accent-red: #ff3b30;
+        --accent-orange: #ff9500;
+
+        --radius-sm: 8px;
+        --radius-md: 12px;
+        --radius-lg: 16px;
+
+        /* Chrome around the phone frames (not part of the app palette) */
+        --stage-bg: #e5e5ea;
+        --frame-border: rgba(0, 0, 0, 0.14);
+        --label-color: #48484a;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg-primary: #000000;
+          --bg-secondary: #1c1c1e;
+          --bg-elevated: #2c2c2e;
+          --text-primary: #ffffff;
+          --text-secondary: rgba(235, 235, 245, 0.6);
+          --text-tertiary: rgba(235, 235, 245, 0.3);
+          --separator: rgba(84, 84, 88, 0.65);
+          --accent: #0a84ff;
+          --accent-green: #30d158;
+          --accent-red: #ff453a;
+          --accent-orange: #ff9f0a;
+
+          --stage-bg: #0c0c0e;
+          --frame-border: rgba(255, 255, 255, 0.16);
+          --label-color: #aeaeb2;
+        }
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display",
+          system-ui, sans-serif;
+        background: var(--stage-bg);
+        color: var(--text-primary);
+        -webkit-font-smoothing: antialiased;
+        padding: 40px 24px 80px;
+      }
+
+      .page-title {
+        text-align: center;
+        max-width: 720px;
+        margin: 0 auto 8px;
+        color: var(--label-color);
+      }
+      .page-title h1 {
+        font-size: 24px;
+        font-weight: 700;
+        color: var(--text-primary);
+      }
+      .page-title p {
+        font-size: 14px;
+        margin-top: 6px;
+      }
+
+      /* ------------------------------------------------------------------ *
+       * Gallery + phone frame chrome
+       * ------------------------------------------------------------------ */
+      .gallery {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 48px 40px;
+        justify-content: center;
+        align-items: flex-start;
+        margin-top: 48px;
+      }
+
+      .frame-wrap {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 14px;
+      }
+
+      .frame-label {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--label-color);
+        text-align: center;
+        max-width: 390px;
+      }
+      .frame-label span {
+        display: block;
+        font-weight: 400;
+        font-size: 12px;
+        opacity: 0.8;
+        margin-top: 2px;
+      }
+
+      /* The phone: exactly 390px wide viewport, per deliverable spec */
+      .phone {
+        position: relative;
+        width: 390px;
+        height: 780px;
+        background: var(--bg-primary);
+        border: 10px solid #1a1a1c;
+        border-radius: 44px;
+        overflow: hidden;
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.28);
+      }
+
+      .viewport {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+
+      /* iOS status bar */
+      .statusbar {
+        height: 44px;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 24px;
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--text-primary);
+      }
+      .statusbar .glyphs {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+      }
+      .statusbar svg {
+        display: block;
+      }
+
+      /* Scrollable content area, leaves room for the tab bar */
+      .content {
+        flex: 1;
+        overflow-y: auto;
+        overflow-x: hidden;
+        padding-bottom: 60px;
+      }
+
+      /* ------------------------------------------------------------------ *
+       * App header (Large Title + add button)
+       * ------------------------------------------------------------------ */
+      .app-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 16px 8px;
+      }
+      .app-header h1 {
+        font-size: 34px;
+        font-weight: 700;
+        letter-spacing: -0.4px;
+        color: var(--text-primary);
+      }
+      .add-btn {
+        width: 44px;
+        height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--accent);
+        background: none;
+        border: none;
+        margin-right: -8px;
+      }
+
+      /* ------------------------------------------------------------------ *
+       * Grouped sections + series cards
+       * ------------------------------------------------------------------ */
+      .section-header {
+        font-size: 13px;
+        font-weight: 400;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        color: var(--text-secondary);
+        padding: 16px 16px 8px;
+      }
+
+      .card-group {
+        background: var(--bg-elevated);
+        border-radius: var(--radius-md);
+        margin: 0 16px;
+        overflow: hidden;
+      }
+
+      .series-card {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px;
+        position: relative;
+        text-decoration: none;
+        color: inherit;
+      }
+      /* Inset separator between cards */
+      .series-card + .series-card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 84px; /* 12 padding + 60 poster + 12 gap */
+        right: 0;
+        height: 1px;
+        background: var(--separator);
+      }
+
+      .poster {
+        width: 60px;
+        height: 90px;
+        border-radius: var(--radius-sm);
+        background: var(--bg-secondary);
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--text-tertiary);
+        overflow: hidden;
+        text-align: center;
+        line-height: 1.2;
+        padding: 4px;
+      }
+
+      .card-body {
+        flex: 1;
+        min-width: 0;
+      }
+      .card-title {
+        font-size: 17px;
+        font-weight: 600;
+        color: var(--text-primary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .card-meta-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 6px;
+      }
+
+      /* Status badge */
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        font-size: 12px;
+        font-weight: 600;
+        line-height: 1;
+        padding: 4px 8px;
+        border-radius: var(--radius-sm);
+        white-space: nowrap;
+      }
+      .badge-watching {
+        color: var(--accent-orange);
+        background: color-mix(in srgb, var(--accent-orange) 10%, transparent);
+      }
+      .badge-completed {
+        color: var(--accent-green);
+        background: color-mix(in srgb, var(--accent-green) 10%, transparent);
+      }
+      .badge-watchlist {
+        color: var(--accent);
+        background: color-mix(in srgb, var(--accent) 10%, transparent);
+      }
+      /* NB: spec lists stopped label as text-tertiary; tertiary is 30% gray and
+         fails contrast at 12px, so this uses text-secondary. See README. */
+      .badge-stopped {
+        color: var(--text-secondary);
+        background: color-mix(in srgb, var(--text-secondary) 15%, transparent);
+      }
+
+      .progress-label {
+        font-size: 13px;
+        color: var(--text-secondary);
+        margin-top: 8px;
+      }
+      .progress-track {
+        height: 4px;
+        border-radius: 9999px; /* radius-full */
+        background: var(--bg-secondary);
+        margin-top: 6px;
+        overflow: hidden;
+      }
+      .progress-fill {
+        height: 100%;
+        border-radius: 9999px; /* radius-full */
+      }
+      .fill-orange {
+        background: var(--accent-orange);
+      }
+      .fill-green {
+        background: var(--accent-green);
+      }
+      .fill-muted {
+        background: var(--text-tertiary);
+      }
+
+      .chevron {
+        flex-shrink: 0;
+        color: var(--text-tertiary);
+      }
+
+      /* ------------------------------------------------------------------ *
+       * Empty / error / loading full-screen states
+       * ------------------------------------------------------------------ */
+      .state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 80px 40px;
+        gap: 12px;
+        min-height: 420px;
+      }
+      .state-icon {
+        color: var(--text-tertiary);
+        margin-bottom: 4px;
+      }
+      .state-title {
+        font-size: 17px;
+        font-weight: 600;
+        color: var(--text-primary);
+      }
+      .state-sub {
+        font-size: 15px;
+        color: var(--text-secondary);
+        max-width: 260px;
+        line-height: 1.4;
+      }
+      .cta {
+        margin-top: 12px;
+        min-height: 44px;
+        padding: 0 24px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--accent);
+        color: #fff;
+        font-size: 17px;
+        font-weight: 600;
+        border-radius: var(--radius-md);
+        border: none;
+      }
+
+      /* Skeleton loading rows */
+      .skeleton-card {
+        display: flex;
+        gap: 12px;
+        padding: 12px;
+        align-items: center;
+      }
+      .sk {
+        background: var(--bg-secondary);
+        border-radius: 4px;
+        position: relative;
+        overflow: hidden;
+      }
+      .sk::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+          90deg,
+          transparent,
+          color-mix(in srgb, var(--text-tertiary) 22%, transparent),
+          transparent
+        );
+        transform: translateX(-100%);
+        animation: shimmer 1.3s infinite;
+      }
+      @keyframes shimmer {
+        100% {
+          transform: translateX(100%);
+        }
+      }
+      .sk-poster {
+        width: 60px;
+        height: 90px;
+        border-radius: var(--radius-sm);
+        flex-shrink: 0;
+      }
+      .sk-line {
+        height: 12px;
+      }
+
+      /* ------------------------------------------------------------------ *
+       * Bottom tab bar
+       * ------------------------------------------------------------------ */
+      .tabbar {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: 83px; /* 49 bar + 34 home indicator area */
+        padding-bottom: 20px;
+        border-top: 1px solid var(--separator);
+        background: color-mix(in srgb, var(--bg-primary) 80%, transparent);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        display: flex;
+      }
+      .tab {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        color: var(--text-secondary);
+        text-decoration: none;
+      }
+      .tab.active {
+        color: var(--accent);
+      }
+      .tab span {
+        font-size: 10px;
+        line-height: 1;
+      }
+      .home-indicator {
+        position: absolute;
+        bottom: 8px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 134px;
+        height: 5px;
+        border-radius: 3px;
+        background: var(--text-primary);
+        opacity: 0.85;
+      }
+
+      /* ------------------------------------------------------------------ *
+       * Sheet modal (add series)
+       * ------------------------------------------------------------------ */
+      .dimmed {
+        position: absolute;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.4);
+      }
+      .sheet {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        max-height: 90%;
+        display: flex;
+        flex-direction: column;
+        background: var(--bg-elevated);
+        border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+        overflow: hidden;
+      }
+      .grabber {
+        width: 36px;
+        height: 5px;
+        border-radius: 9999px; /* radius-full — matches Sheet.tsx rounded-full */
+        background: var(--text-tertiary);
+        margin: 8px auto 0;
+        flex-shrink: 0;
+      }
+      .sheet-title {
+        text-align: center;
+        font-size: 17px;
+        font-weight: 600;
+        color: var(--text-primary);
+        padding: 12px 16px 4px;
+      }
+      .searchbar {
+        margin: 4px 16px 8px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: var(--bg-secondary);
+        border-radius: 10px;
+        padding: 0 12px;
+        min-height: 44px;
+      }
+      .searchbar input {
+        border: none;
+        background: none;
+        outline: none;
+        flex: 1;
+        font-size: 17px;
+        color: var(--text-primary);
+        font-family: inherit;
+      }
+      .searchbar input::placeholder {
+        color: var(--text-tertiary);
+      }
+      .searchbar .search-icon {
+        color: var(--text-tertiary);
+        flex-shrink: 0;
+      }
+      .searchbar .clear-icon {
+        color: var(--text-tertiary);
+        flex-shrink: 0;
+      }
+
+      .sheet-scroll {
+        overflow-y: auto;
+        padding-bottom: 20px;
+      }
+
+      .result-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 8px 16px;
+        position: relative;
+      }
+      .result-body {
+        flex: 1;
+        min-width: 0;
+      }
+      .result-title {
+        font-size: 17px;
+        font-weight: 600;
+        color: var(--text-primary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .result-year {
+        font-size: 13px;
+        color: var(--text-secondary);
+        margin-top: 4px;
+      }
+      .action {
+        flex-shrink: 0;
+        font-size: 15px;
+        font-weight: 600;
+      }
+      .action-add {
+        color: var(--accent);
+      }
+      .action-added {
+        color: var(--accent-green);
+      }
+      .action-adding {
+        color: var(--text-secondary);
+      }
+
+      .sheet-state {
+        text-align: center;
+        padding: 40px 24px;
+        font-size: 15px;
+        color: var(--text-secondary);
+      }
+      .sheet-error-inline {
+        padding: 4px 16px 8px;
+        font-size: 13px;
+        color: var(--accent-red);
+      }
+
+      .caption-note {
+        max-width: 720px;
+        margin: 56px auto 0;
+        font-size: 13px;
+        color: var(--label-color);
+        line-height: 1.6;
+        text-align: center;
+      }
+      code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page-title">
+      <h1>Series list &amp; add-series flow</h1>
+      <p>Issue #27 — all screens at a 390px viewport. Toggle your OS light/dark to preview both themes.</p>
+    </div>
+
+    <div class="gallery">
+      <!-- ============================================================= -->
+      <!-- 1. SERIES LIST — POPULATED (grouped by status)                -->
+      <!-- ============================================================= -->
+      <div class="frame-wrap">
+        <div class="frame-label">
+          Series list — populated
+          <span>Grouped by status · poster + badge + progress</span>
+        </div>
+        <div class="phone">
+          <div class="viewport">
+            <!-- status bar -->
+            <div class="statusbar">
+              <span>9:41</span>
+              <span class="glyphs">
+                <svg width="18" height="12" viewBox="0 0 18 12" fill="currentColor"><rect x="0" y="7" width="3" height="5" rx="1"/><rect x="4" y="5" width="3" height="7" rx="1"/><rect x="8" y="3" width="3" height="9" rx="1"/><rect x="12" y="1" width="3" height="11" rx="1"/></svg>
+                <svg width="16" height="12" viewBox="0 0 16 12" fill="currentColor"><path d="M8 2.5c1.9 0 3.6.7 4.9 1.9l1-1C12.3 1.9 10.2 1 8 1S3.7 1.9 2.1 3.4l1 1C4.4 3.2 6.1 2.5 8 2.5z" opacity=".9"/><path d="M8 5.5c1 0 2 .4 2.7 1.1l1-1C10.7 4.7 9.4 4.2 8 4.2s-2.7.5-3.7 1.4l1 1C6 5.9 7 5.5 8 5.5z" opacity=".9"/><circle cx="8" cy="9" r="1.6"/></svg>
+                <svg width="26" height="12" viewBox="0 0 26 12" fill="none"><rect x="1" y="1" width="21" height="10" rx="2.5" stroke="currentColor" opacity=".4"/><rect x="3" y="3" width="16" height="6" rx="1" fill="currentColor"/><rect x="23" y="4" width="1.5" height="4" rx=".75" fill="currentColor" opacity=".5"/></svg>
+              </span>
+            </div>
+
+            <div class="content">
+              <div class="app-header">
+                <h1>Series</h1>
+                <button class="add-btn" aria-label="Add series">
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+                </button>
+              </div>
+
+              <!-- WATCHING -->
+              <div class="section-header">Watching</div>
+              <div class="card-group">
+                <a class="series-card">
+                  <div class="poster">SEV</div>
+                  <div class="card-body">
+                    <div class="card-title">Severance</div>
+                    <div class="card-meta-row">
+                      <span class="badge badge-watching">Watching</span>
+                    </div>
+                    <div class="progress-label">S02 — 3/10</div>
+                    <div class="progress-track"><div class="progress-fill fill-orange" style="width: 30%"></div></div>
+                  </div>
+                  <svg class="chevron" width="9" height="16" viewBox="0 0 9 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 1l6 7-6 7"/></svg>
+                </a>
+                <a class="series-card">
+                  <div class="poster">TB</div>
+                  <div class="card-body">
+                    <div class="card-title">The Bear</div>
+                    <div class="card-meta-row">
+                      <span class="badge badge-watching">Watching</span>
+                    </div>
+                    <div class="progress-label">S03 — 6/10</div>
+                    <div class="progress-track"><div class="progress-fill fill-orange" style="width: 60%"></div></div>
+                  </div>
+                  <svg class="chevron" width="9" height="16" viewBox="0 0 9 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 1l6 7-6 7"/></svg>
+                </a>
+              </div>
+
+              <!-- WATCHLIST -->
+              <div class="section-header">Watchlist</div>
+              <div class="card-group">
+                <a class="series-card">
+                  <div class="poster">SHOGUN</div>
+                  <div class="card-body">
+                    <div class="card-title">Shōgun</div>
+                    <div class="card-meta-row">
+                      <span class="badge badge-watchlist">Watchlist</span>
+                    </div>
+                    <div class="progress-label">Not started · 10 episodes</div>
+                  </div>
+                  <svg class="chevron" width="9" height="16" viewBox="0 0 9 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 1l6 7-6 7"/></svg>
+                </a>
+              </div>
+
+              <!-- STOPPED -->
+              <div class="section-header">Stopped</div>
+              <div class="card-group">
+                <a class="series-card">
+                  <div class="poster">WD</div>
+                  <div class="card-body">
+                    <div class="card-title">The Walking Dead</div>
+                    <div class="card-meta-row">
+                      <span class="badge badge-stopped">Stopped</span>
+                    </div>
+                    <div class="progress-label">S05 — 42/177</div>
+                    <div class="progress-track"><div class="progress-fill fill-muted" style="width: 24%"></div></div>
+                  </div>
+                  <svg class="chevron" width="9" height="16" viewBox="0 0 9 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 1l6 7-6 7"/></svg>
+                </a>
+              </div>
+
+              <!-- COMPLETED -->
+              <div class="section-header">Completed</div>
+              <div class="card-group">
+                <a class="series-card">
+                  <div class="poster">BB</div>
+                  <div class="card-body">
+                    <div class="card-title">Breaking Bad</div>
+                    <div class="card-meta-row">
+                      <span class="badge badge-completed">Completed</span>
+                    </div>
+                    <div class="progress-label">62/62 episodes</div>
+                    <div class="progress-track"><div class="progress-fill fill-green" style="width: 100%"></div></div>
+                  </div>
+                  <svg class="chevron" width="9" height="16" viewBox="0 0 9 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 1l6 7-6 7"/></svg>
+                </a>
+                <a class="series-card">
+                  <div class="poster">CHER</div>
+                  <div class="card-body">
+                    <div class="card-title">Chernobyl</div>
+                    <div class="card-meta-row">
+                      <span class="badge badge-completed">Completed</span>
+                    </div>
+                    <div class="progress-label">5/5 episodes</div>
+                    <div class="progress-track"><div class="progress-fill fill-green" style="width: 100%"></div></div>
+                  </div>
+                  <svg class="chevron" width="9" height="16" viewBox="0 0 9 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 1l6 7-6 7"/></svg>
+                </a>
+              </div>
+            </div>
+
+            <!-- tab bar -->
+            <nav class="tabbar">
+              <a class="tab active">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg>
+                <span>Series</span>
+              </a>
+              <a class="tab">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/><path d="M7 4v5"/><path d="M17 4v5"/></svg>
+                <span>Movies</span>
+              </a>
+              <a class="tab">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18"/><path d="M8 3v4"/><path d="M16 3v4"/></svg>
+                <span>Calendar</span>
+              </a>
+              <a class="tab">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4.418 3.582-7 8-7s8 2.582 8 7"/></svg>
+                <span>Profile</span>
+              </a>
+            </nav>
+            <div class="home-indicator"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============================================================= -->
+      <!-- 2. SERIES LIST — EMPTY                                         -->
+      <!-- ============================================================= -->
+      <div class="frame-wrap">
+        <div class="frame-label">
+          Series list — empty
+          <span>First run · icon + message + CTA</span>
+        </div>
+        <div class="phone">
+          <div class="viewport">
+            <div class="statusbar">
+              <span>9:41</span>
+              <span class="glyphs">
+                <svg width="18" height="12" viewBox="0 0 18 12" fill="currentColor"><rect x="0" y="7" width="3" height="5" rx="1"/><rect x="4" y="5" width="3" height="7" rx="1"/><rect x="8" y="3" width="3" height="9" rx="1"/><rect x="12" y="1" width="3" height="11" rx="1"/></svg>
+                <svg width="26" height="12" viewBox="0 0 26 12" fill="none"><rect x="1" y="1" width="21" height="10" rx="2.5" stroke="currentColor" opacity=".4"/><rect x="3" y="3" width="16" height="6" rx="1" fill="currentColor"/><rect x="23" y="4" width="1.5" height="4" rx=".75" fill="currentColor" opacity=".5"/></svg>
+              </span>
+            </div>
+            <div class="content">
+              <div class="app-header">
+                <h1>Series</h1>
+                <button class="add-btn" aria-label="Add series">
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+                </button>
+              </div>
+              <div class="state">
+                <div class="state-icon">
+                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg>
+                </div>
+                <div class="state-title">No series yet</div>
+                <div class="state-sub">Search TMDB to add the shows you’re watching and track every episode.</div>
+                <button class="cta">Search for a series</button>
+              </div>
+            </div>
+            <nav class="tabbar">
+              <a class="tab active">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg>
+                <span>Series</span>
+              </a>
+              <a class="tab">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/><path d="M7 4v5"/><path d="M17 4v5"/></svg>
+                <span>Movies</span>
+              </a>
+              <a class="tab">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18"/><path d="M8 3v4"/><path d="M16 3v4"/></svg>
+                <span>Calendar</span>
+              </a>
+              <a class="tab">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4.418 3.582-7 8-7s8 2.582 8 7"/></svg>
+                <span>Profile</span>
+              </a>
+            </nav>
+            <div class="home-indicator"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============================================================= -->
+      <!-- 3. SERIES LIST — ERROR                                         -->
+      <!-- ============================================================= -->
+      <div class="frame-wrap">
+        <div class="frame-label">
+          Series list — error
+          <span>Supabase load failed · retry</span>
+        </div>
+        <div class="phone">
+          <div class="viewport">
+            <div class="statusbar">
+              <span>9:41</span>
+              <span class="glyphs">
+                <svg width="18" height="12" viewBox="0 0 18 12" fill="currentColor"><rect x="0" y="7" width="3" height="5" rx="1"/><rect x="4" y="5" width="3" height="7" rx="1"/><rect x="8" y="3" width="3" height="9" rx="1"/><rect x="12" y="1" width="3" height="11" rx="1"/></svg>
+                <svg width="26" height="12" viewBox="0 0 26 12" fill="none"><rect x="1" y="1" width="21" height="10" rx="2.5" stroke="currentColor" opacity=".4"/><rect x="3" y="3" width="16" height="6" rx="1" fill="currentColor"/><rect x="23" y="4" width="1.5" height="4" rx=".75" fill="currentColor" opacity=".5"/></svg>
+              </span>
+            </div>
+            <div class="content">
+              <div class="app-header">
+                <h1>Series</h1>
+                <button class="add-btn" aria-label="Add series">
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+                </button>
+              </div>
+              <div class="state">
+                <div class="state-icon">
+                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5"/><path d="M12 16h.01"/></svg>
+                </div>
+                <div class="state-title">Couldn’t load your series</div>
+                <div class="state-sub">Something went wrong reaching the server. Check your connection and try again.</div>
+                <button class="cta">Try again</button>
+              </div>
+            </div>
+            <nav class="tabbar">
+              <a class="tab active">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg>
+                <span>Series</span>
+              </a>
+              <a class="tab">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/><path d="M7 4v5"/><path d="M17 4v5"/></svg>
+                <span>Movies</span>
+              </a>
+              <a class="tab">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18"/><path d="M8 3v4"/><path d="M16 3v4"/></svg>
+                <span>Calendar</span>
+              </a>
+              <a class="tab">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4.418 3.582-7 8-7s8 2.582 8 7"/></svg>
+                <span>Profile</span>
+              </a>
+            </nav>
+            <div class="home-indicator"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============================================================= -->
+      <!-- 4. ADD SERIES SHEET — RESULTS                                  -->
+      <!-- ============================================================= -->
+      <div class="frame-wrap">
+        <div class="frame-label">
+          Add series — results
+          <span>Sheet over list · Add / Adding… / Added</span>
+        </div>
+        <div class="phone">
+          <div class="viewport">
+            <div class="statusbar">
+              <span>9:41</span>
+              <span class="glyphs">
+                <svg width="18" height="12" viewBox="0 0 18 12" fill="currentColor"><rect x="0" y="7" width="3" height="5" rx="1"/><rect x="4" y="5" width="3" height="7" rx="1"/><rect x="8" y="3" width="3" height="9" rx="1"/><rect x="12" y="1" width="3" height="11" rx="1"/></svg>
+                <svg width="26" height="12" viewBox="0 0 26 12" fill="none"><rect x="1" y="1" width="21" height="10" rx="2.5" stroke="currentColor" opacity=".4"/><rect x="3" y="3" width="16" height="6" rx="1" fill="currentColor"/><rect x="23" y="4" width="1.5" height="4" rx=".75" fill="currentColor" opacity=".5"/></svg>
+              </span>
+            </div>
+            <!-- Dimmed list behind -->
+            <div class="content" style="opacity: 0.5;">
+              <div class="app-header">
+                <h1>Series</h1>
+                <button class="add-btn" aria-label="Add series">
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+                </button>
+              </div>
+            </div>
+            <div class="dimmed"></div>
+
+            <!-- Sheet -->
+            <div class="sheet" style="height: 78%">
+              <div class="grabber"></div>
+              <div class="sheet-title">Add series</div>
+              <div class="searchbar">
+                <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+                <input type="text" value="the last" placeholder="Search series" />
+                <svg class="clear-icon" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10" opacity="0.35"/><path d="M15 9l-6 6M9 9l6 6" stroke="var(--bg-elevated)" stroke-width="2" stroke-linecap="round" fill="none"/></svg>
+              </div>
+              <div class="sheet-scroll">
+                <div class="result-row">
+                  <div class="poster">TLOU</div>
+                  <div class="result-body">
+                    <div class="result-title">The Last of Us</div>
+                    <div class="result-year">2023</div>
+                  </div>
+                  <span class="action action-added">Added</span>
+                </div>
+                <div class="result-row">
+                  <div class="poster">TLK</div>
+                  <div class="result-body">
+                    <div class="result-title">The Last Kingdom</div>
+                    <div class="result-year">2015</div>
+                  </div>
+                  <span class="action action-adding">Adding…</span>
+                </div>
+                <div class="result-row">
+                  <div class="poster">TLM</div>
+                  <div class="result-body">
+                    <div class="result-title">The Last Man on Earth</div>
+                    <div class="result-year">2015</div>
+                  </div>
+                  <span class="action action-add">Add</span>
+                </div>
+                <div class="result-row">
+                  <div class="poster">?</div>
+                  <div class="result-body">
+                    <div class="result-title">The Last Ship</div>
+                    <div class="result-year">2014</div>
+                  </div>
+                  <span class="action action-add">Add</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============================================================= -->
+      <!-- 5. ADD SERIES SHEET — LOADING                                  -->
+      <!-- ============================================================= -->
+      <div class="frame-wrap">
+        <div class="frame-label">
+          Add series — loading
+          <span>Debounced query in flight · skeletons</span>
+        </div>
+        <div class="phone">
+          <div class="viewport">
+            <div class="statusbar">
+              <span>9:41</span>
+              <span class="glyphs">
+                <svg width="18" height="12" viewBox="0 0 18 12" fill="currentColor"><rect x="0" y="7" width="3" height="5" rx="1"/><rect x="4" y="5" width="3" height="7" rx="1"/><rect x="8" y="3" width="3" height="9" rx="1"/><rect x="12" y="1" width="3" height="11" rx="1"/></svg>
+                <svg width="26" height="12" viewBox="0 0 26 12" fill="none"><rect x="1" y="1" width="21" height="10" rx="2.5" stroke="currentColor" opacity=".4"/><rect x="3" y="3" width="16" height="6" rx="1" fill="currentColor"/><rect x="23" y="4" width="1.5" height="4" rx=".75" fill="currentColor" opacity=".5"/></svg>
+              </span>
+            </div>
+            <div class="content" style="opacity: 0.5;">
+              <div class="app-header">
+                <h1>Series</h1>
+                <button class="add-btn" aria-label="Add series">
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+                </button>
+              </div>
+            </div>
+            <div class="dimmed"></div>
+            <div class="sheet" style="height: 78%">
+              <div class="grabber"></div>
+              <div class="sheet-title">Add series</div>
+              <div class="searchbar">
+                <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+                <input type="text" value="severance" placeholder="Search series" />
+                <svg class="clear-icon" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10" opacity="0.35"/><path d="M15 9l-6 6M9 9l6 6" stroke="var(--bg-elevated)" stroke-width="2" stroke-linecap="round" fill="none"/></svg>
+              </div>
+              <div class="sheet-scroll">
+                <div class="skeleton-card">
+                  <div class="sk sk-poster"></div>
+                  <div style="flex:1">
+                    <div class="sk sk-line" style="width: 62%"></div>
+                    <div class="sk sk-line" style="width: 32%; margin-top: 8px"></div>
+                  </div>
+                </div>
+                <div class="skeleton-card">
+                  <div class="sk sk-poster"></div>
+                  <div style="flex:1">
+                    <div class="sk sk-line" style="width: 74%"></div>
+                    <div class="sk sk-line" style="width: 28%; margin-top: 8px"></div>
+                  </div>
+                </div>
+                <div class="skeleton-card">
+                  <div class="sk sk-poster"></div>
+                  <div style="flex:1">
+                    <div class="sk sk-line" style="width: 54%"></div>
+                    <div class="sk sk-line" style="width: 36%; margin-top: 8px"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============================================================= -->
+      <!-- 6. ADD SERIES SHEET — EMPTY RESULTS                            -->
+      <!-- ============================================================= -->
+      <div class="frame-wrap">
+        <div class="frame-label">
+          Add series — no results
+          <span>Query returned nothing</span>
+        </div>
+        <div class="phone">
+          <div class="viewport">
+            <div class="statusbar">
+              <span>9:41</span>
+              <span class="glyphs">
+                <svg width="18" height="12" viewBox="0 0 18 12" fill="currentColor"><rect x="0" y="7" width="3" height="5" rx="1"/><rect x="4" y="5" width="3" height="7" rx="1"/><rect x="8" y="3" width="3" height="9" rx="1"/><rect x="12" y="1" width="3" height="11" rx="1"/></svg>
+                <svg width="26" height="12" viewBox="0 0 26 12" fill="none"><rect x="1" y="1" width="21" height="10" rx="2.5" stroke="currentColor" opacity=".4"/><rect x="3" y="3" width="16" height="6" rx="1" fill="currentColor"/><rect x="23" y="4" width="1.5" height="4" rx=".75" fill="currentColor" opacity=".5"/></svg>
+              </span>
+            </div>
+            <div class="content" style="opacity: 0.5;">
+              <div class="app-header">
+                <h1>Series</h1>
+                <button class="add-btn" aria-label="Add series">
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+                </button>
+              </div>
+            </div>
+            <div class="dimmed"></div>
+            <div class="sheet" style="height: 78%">
+              <div class="grabber"></div>
+              <div class="sheet-title">Add series</div>
+              <div class="searchbar">
+                <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+                <input type="text" value="zzxqwv" placeholder="Search series" />
+                <svg class="clear-icon" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10" opacity="0.35"/><path d="M15 9l-6 6M9 9l6 6" stroke="var(--bg-elevated)" stroke-width="2" stroke-linecap="round" fill="none"/></svg>
+              </div>
+              <div class="sheet-scroll">
+                <div class="state" style="min-height: 260px; padding: 56px 40px;">
+                  <div class="state-icon">
+                    <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+                  </div>
+                  <div class="state-title">No series found</div>
+                  <div class="state-sub">Try a different title or spelling.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============================================================= -->
+      <!-- 7. ADD SERIES SHEET — ERROR (search + add error)              -->
+      <!-- ============================================================= -->
+      <div class="frame-wrap">
+        <div class="frame-label">
+          Add series — error
+          <span>Search request failed + inline add error</span>
+        </div>
+        <div class="phone">
+          <div class="viewport">
+            <div class="statusbar">
+              <span>9:41</span>
+              <span class="glyphs">
+                <svg width="18" height="12" viewBox="0 0 18 12" fill="currentColor"><rect x="0" y="7" width="3" height="5" rx="1"/><rect x="4" y="5" width="3" height="7" rx="1"/><rect x="8" y="3" width="3" height="9" rx="1"/><rect x="12" y="1" width="3" height="11" rx="1"/></svg>
+                <svg width="26" height="12" viewBox="0 0 26 12" fill="none"><rect x="1" y="1" width="21" height="10" rx="2.5" stroke="currentColor" opacity=".4"/><rect x="3" y="3" width="16" height="6" rx="1" fill="currentColor"/><rect x="23" y="4" width="1.5" height="4" rx=".75" fill="currentColor" opacity=".5"/></svg>
+              </span>
+            </div>
+            <div class="content" style="opacity: 0.5;">
+              <div class="app-header">
+                <h1>Series</h1>
+                <button class="add-btn" aria-label="Add series">
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+                </button>
+              </div>
+            </div>
+            <div class="dimmed"></div>
+            <div class="sheet" style="height: 78%">
+              <div class="grabber"></div>
+              <div class="sheet-title">Add series</div>
+              <div class="searchbar">
+                <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+                <input type="text" value="dark" placeholder="Search series" />
+                <svg class="clear-icon" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10" opacity="0.35"/><path d="M15 9l-6 6M9 9l6 6" stroke="var(--bg-elevated)" stroke-width="2" stroke-linecap="round" fill="none"/></svg>
+              </div>
+              <div class="sheet-scroll">
+                <div class="state" style="min-height: 260px; padding: 56px 40px;">
+                  <div class="state-icon">
+                    <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5"/><path d="M12 16h.01"/></svg>
+                  </div>
+                  <div class="state-title">Couldn’t search right now</div>
+                  <div class="state-sub">Please check your connection and try again.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p class="caption-note">
+      Posters are rendered as gray placeholders (design-system fallback). In the app,
+      <code>next/image</code> loads TMDB <code>w185</code> thumbnails; the gray block is the loading /
+      missing-poster state. Status &amp; progress come from computed episode data
+      (<code>watched / total</code>); the four statuses are <code>watching</code>,
+      <code>watchlist</code>, <code>stopped</code>, <code>completed</code>. See
+      <code>README.md</code> for the full component &rarr; Tailwind mapping.
+    </p>
+  </body>
+</html>
