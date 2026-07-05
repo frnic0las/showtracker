@@ -1,7 +1,8 @@
 import { redirect } from 'next/navigation';
+import { MoviesList } from '@/components/movies/MoviesList';
 import { MoviesSearch } from '@/components/movies/MoviesSearch';
 import { CenteredState } from '@/components/ui/CenteredState';
-import { getUserMovieIds } from '@/lib/movies/queries';
+import { getUserMovies } from '@/lib/movies/queries';
 import { createClient } from '@/lib/supabase/server';
 
 function MoviesIcon() {
@@ -35,7 +36,8 @@ export default async function MoviesPage() {
     redirect('/login');
   }
 
-  const movieIds = await getUserMovieIds(user.id);
+  const { watched, watchlist } = await getUserMovies(user.id);
+  const movieIds = [...watched, ...watchlist].map((movie) => movie.tmdbId);
 
   return (
     <div>
@@ -53,13 +55,7 @@ export default async function MoviesPage() {
           <MoviesSearch addedIds={movieIds} variant="cta" />
         </CenteredState>
       ) : (
-        <CenteredState
-          icon={<MoviesIcon />}
-          title={`${movieIds.length} ${movieIds.length === 1 ? 'movie' : 'movies'} tracked`}
-          description="Movies you've added to your watchlist or marked watched. The full list view is on its way."
-        >
-          <MoviesSearch addedIds={movieIds} variant="cta" />
-        </CenteredState>
+        <MoviesList watched={watched} watchlist={watchlist} />
       )}
     </div>
   );
