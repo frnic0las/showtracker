@@ -27,7 +27,7 @@ export function EpisodeRow({
   const air = formatEpisodeAirDate(airDate);
 
   return (
-    <div className="relative flex items-center gap-3 px-3 py-2 [&:not(:first-child)]:before:absolute [&:not(:first-child)]:before:left-3 [&:not(:first-child)]:before:right-3 [&:not(:first-child)]:before:top-0 [&:not(:first-child)]:before:h-px [&:not(:first-child)]:before:bg-separator">
+    <div className="relative flex items-center gap-3 px-3 py-2 [&:not(:first-child)]:before:absolute [&:not(:first-child)]:before:left-[48px] [&:not(:first-child)]:before:right-0 [&:not(:first-child)]:before:top-0 [&:not(:first-child)]:before:h-px [&:not(:first-child)]:before:bg-separator">
       <span className="w-6 shrink-0 text-[13px] font-semibold tabular-nums text-text-secondary">
         E{episodeNumber}
       </span>

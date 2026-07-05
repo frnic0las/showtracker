@@ -1,32 +1,19 @@
 /**
- * Presentation helpers for the series detail view. Air dates from TMDB are
- * plain `YYYY-MM-DD` strings with no time or zone, so they are parsed and
- * compared in UTC to avoid an off-by-one day shift near the user's midnight.
+ * Presentation helpers for the series detail view. Air-date math lives in
+ * `@/lib/dates` (shared with the Upcoming list); this module only formats the
+ * labels the detail UI renders.
  */
 
-const DAY_MS = 24 * 60 * 60 * 1000;
-
-/** Parses a `YYYY-MM-DD` date string to a UTC-midnight timestamp. */
-function parseUtcDate(dateStr: string): number {
-  const [year, month, day] = dateStr.split('-').map(Number);
-  return Date.UTC(year, month - 1, day);
-}
+import { daysUntil, parseUtcDate } from '@/lib/dates';
 
 /** Formats a `YYYY-MM-DD` string as e.g. `Feb 7, 2025` (UTC, no zone shift). */
 function formatDate(dateStr: string): string {
-  const [year, month, day] = dateStr.split('-').map(Number);
-  return new Date(Date.UTC(year, month - 1, day)).toLocaleDateString('en-US', {
+  return new Date(parseUtcDate(dateStr)).toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
     timeZone: 'UTC',
   });
-}
-
-/** Whole days from today (UTC) until `dateStr`; negative once it has aired. */
-function daysUntil(dateStr: string): number {
-  const todayUtc = parseUtcDate(new Date().toISOString().slice(0, 10));
-  return Math.round((parseUtcDate(dateStr) - todayUtc) / DAY_MS);
 }
 
 /**

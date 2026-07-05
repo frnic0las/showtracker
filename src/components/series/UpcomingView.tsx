@@ -1,6 +1,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { CenteredState } from '@/components/ui/CenteredState';
+import { daysUntil } from '@/lib/dates';
 import { posterUrl } from '@/lib/tmdb/images';
 import type { UpcomingEpisode } from '@/types/series';
 
@@ -17,17 +18,10 @@ const BUCKET_LABELS: Record<BucketKey, string> = {
   later: 'Later',
 };
 
-const DAY_MS = 24 * 60 * 60 * 1000;
-
-function parseUtcDate(dateStr: string): number {
-  const [year, month, day] = dateStr.split('-').map(Number);
-  return Date.UTC(year, month - 1, day);
-}
-
-function bucketFor(daysUntil: number): BucketKey {
-  if (daysUntil === 0) return 'today';
-  if (daysUntil === 1) return 'tomorrow';
-  if (daysUntil <= 6) return 'thisWeek';
+function bucketFor(days: number): BucketKey {
+  if (days === 0) return 'today';
+  if (days === 1) return 'tomorrow';
+  if (days <= 6) return 'thisWeek';
   return 'later';
 }
 
@@ -68,15 +62,12 @@ export function UpcomingView({ episodes }: UpcomingViewProps) {
     );
   }
 
-  const todayStr = new Date().toISOString().slice(0, 10);
-  const todayUtc = parseUtcDate(todayStr);
-
-  const groups = new Map<BucketKey, { episode: UpcomingEpisode; daysUntil: number }[]>();
+  const groups = new Map<BucketKey, { episode: UpcomingEpisode; days: number }[]>();
   for (const episode of episodes) {
-    const daysUntil = Math.round((parseUtcDate(episode.airDate) - todayUtc) / DAY_MS);
-    const bucket = bucketFor(daysUntil);
+    const days = daysUntil(episode.airDate);
+    const bucket = bucketFor(days);
     const group = groups.get(bucket) ?? [];
-    group.push({ episode, daysUntil });
+    group.push({ episode, days });
     groups.set(bucket, group);
   }
 
@@ -94,7 +85,7 @@ export function UpcomingView({ episodes }: UpcomingViewProps) {
               {BUCKET_LABELS[bucket]}
             </h3>
             <div className="mx-4 overflow-hidden rounded-md border border-separator bg-bg-elevated">
-              {items.map(({ episode, daysUntil }) => {
+              {items.map(({ episode, days }) => {
                 const poster = posterUrl(episode.posterPath, 'w185');
 
                 return (
@@ -123,15 +114,15 @@ export function UpcomingView({ episodes }: UpcomingViewProps) {
                       </p>
                     </div>
                     <div className="min-w-[52px] shrink-0 text-center">
-                      {daysUntil === 0 ? (
+                      {days === 0 ? (
                         <p className="text-[15px] font-bold text-accent-orange">Today</p>
                       ) : (
                         <>
                           <p className="text-[22px] font-bold leading-none text-accent-orange">
-                            {daysUntil}
+                            {days}
                           </p>
                           <p className="mt-0.5 text-[11px] uppercase tracking-wide text-text-secondary">
-                            {daysUntil === 1 ? 'day' : 'days'}
+                            {days === 1 ? 'day' : 'days'}
                           </p>
                         </>
                       )}
