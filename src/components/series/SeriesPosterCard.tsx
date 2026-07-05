@@ -29,7 +29,7 @@ export function SeriesPosterCard({
         {poster ? (
           <Image src={poster} alt="" fill sizes="33vw" className="object-cover" />
         ) : null}
-        {badge && badge > 0 ? (
+        {badge !== undefined && badge > 0 ? (
           <span className="absolute right-2 top-2 flex h-[22px] min-w-[22px] items-center justify-center rounded-full bg-accent px-1.5 text-xs font-bold text-white shadow">
             {badge}
           </span>
