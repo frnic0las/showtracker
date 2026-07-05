@@ -12,6 +12,40 @@ import type {
 } from '@/types/series';
 
 /**
+ * Resolves the current user and asserts they track `tmdbSeriesId`, returning a
+ * ready-to-use Supabase client and user on success. Every episode/season
+ * mutation shares this gate: it keeps a direct action call from creating orphan
+ * watch records for a series the user doesn't track. On failure it returns the
+ * error-shaped result the calling action can return verbatim.
+ */
+async function requireTrackedSeries(tmdbSeriesId: number) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { ok: false as const, error: 'You must be signed in.' };
+  }
+
+  const { data: tracked, error } = await supabase
+    .from('user_series')
+    .select('tmdb_id')
+    .eq('user_id', user.id)
+    .eq('tmdb_id', tmdbSeriesId)
+    .maybeSingle();
+
+  if (error) {
+    return { ok: false as const, error: 'Could not verify your series. Please try again.' };
+  }
+  if (!tracked) {
+    return { ok: false as const, error: 'This series is not in your list.' };
+  }
+
+  return { ok: true as const, user, supabase };
+}
+
+/**
  * Adds a TV series to the current user's tracking list with status
  * `watching`, and upserts its TMDB metadata into the shared `series_cache`.
  *
@@ -101,30 +135,11 @@ export async function markSeasonWatched(
     return { ok: false, error: 'Invalid series or season.' };
   }
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return { ok: false, error: 'You must be signed in.' };
+  const guard = await requireTrackedSeries(tmdbSeriesId);
+  if (!guard.ok) {
+    return guard;
   }
-
-  // Only let a user mark a season of a series they actually track — otherwise a
-  // direct action call could create orphan watch records for untracked series.
-  const { data: tracked, error: trackedError } = await supabase
-    .from('user_series')
-    .select('tmdb_id')
-    .eq('user_id', user.id)
-    .eq('tmdb_id', tmdbSeriesId)
-    .maybeSingle();
-
-  if (trackedError) {
-    return { ok: false, error: 'Could not verify your series. Please try again.' };
-  }
-  if (!tracked) {
-    return { ok: false, error: 'This series is not in your list.' };
-  }
+  const { user, supabase } = guard;
 
   const { data: episodes, error: episodesError } = await supabase
     .from('episodes_cache')
@@ -166,13 +181,14 @@ export async function markSeasonWatched(
 }
 
 /**
- * Toggles the watched state of a single episode for the current user. If a
- * watch record exists it is deleted (episode becomes unwatched); otherwise one
- * is inserted (episode becomes watched). Idempotent per resulting state: the
- * existence check drives the branch, and the insert ignores conflicts on the
- * `(user_id, tmdb_series_id, season_number, episode_number)` unique constraint,
- * so concurrent toggles can never create duplicate rows. RLS scopes every read
- * and write to the caller's own rows.
+ * Toggles the watched state of a single episode for the current user.
+ * Delete-first: it attempts to remove the watch record and, if a row was
+ * actually deleted, the episode is now unwatched; if nothing matched, it
+ * inserts a record and the episode becomes watched. This avoids a separate
+ * existence-check round-trip on the hot path (every checkbox tap). The insert
+ * ignores conflicts on the `(user_id, tmdb_series_id, season_number,
+ * episode_number)` unique constraint, so concurrent toggles can never create
+ * duplicate rows. RLS scopes every read and write to the caller's own rows.
  */
 export async function toggleEpisodeWatched(
   tmdbSeriesId: number,
@@ -190,57 +206,26 @@ export async function toggleEpisodeWatched(
     return { ok: false, error: 'Invalid episode.' };
   }
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return { ok: false, error: 'You must be signed in.' };
+  const guard = await requireTrackedSeries(tmdbSeriesId);
+  if (!guard.ok) {
+    return guard;
   }
+  const { user, supabase } = guard;
 
-  // Only let a user toggle an episode of a series they actually track —
-  // otherwise a direct action call could create orphan watch records.
-  const { data: tracked, error: trackedError } = await supabase
-    .from('user_series')
-    .select('tmdb_id')
-    .eq('user_id', user.id)
-    .eq('tmdb_id', tmdbSeriesId)
-    .maybeSingle();
-
-  if (trackedError) {
-    return { ok: false, error: 'Could not verify your series. Please try again.' };
-  }
-  if (!tracked) {
-    return { ok: false, error: 'This series is not in your list.' };
-  }
-
-  const { data: existing, error: existingError } = await supabase
+  const { data: deleted, error: deleteError } = await supabase
     .from('user_episodes')
-    .select('id')
+    .delete()
     .eq('user_id', user.id)
     .eq('tmdb_series_id', tmdbSeriesId)
     .eq('season_number', seasonNumber)
     .eq('episode_number', episodeNumber)
-    .maybeSingle();
+    .select('id');
 
-  if (existingError) {
+  if (deleteError) {
     return { ok: false, error: 'Could not update the episode. Please try again.' };
   }
 
-  if (existing) {
-    const { error: deleteError } = await supabase
-      .from('user_episodes')
-      .delete()
-      .eq('user_id', user.id)
-      .eq('tmdb_series_id', tmdbSeriesId)
-      .eq('season_number', seasonNumber)
-      .eq('episode_number', episodeNumber);
-
-    if (deleteError) {
-      return { ok: false, error: 'Could not update the episode. Please try again.' };
-    }
-
+  if (deleted && deleted.length > 0) {
     revalidatePath(`/series/${tmdbSeriesId}`);
     revalidatePath('/series');
     return { ok: true, watched: false };
@@ -287,29 +272,11 @@ export async function unmarkSeasonWatched(
     return { ok: false, error: 'Invalid series or season.' };
   }
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return { ok: false, error: 'You must be signed in.' };
+  const guard = await requireTrackedSeries(tmdbSeriesId);
+  if (!guard.ok) {
+    return guard;
   }
-
-  // Only let a user unmark a season of a series they actually track.
-  const { data: tracked, error: trackedError } = await supabase
-    .from('user_series')
-    .select('tmdb_id')
-    .eq('user_id', user.id)
-    .eq('tmdb_id', tmdbSeriesId)
-    .maybeSingle();
-
-  if (trackedError) {
-    return { ok: false, error: 'Could not verify your series. Please try again.' };
-  }
-  if (!tracked) {
-    return { ok: false, error: 'This series is not in your list.' };
-  }
+  const { user, supabase } = guard;
 
   const { data, error } = await supabase
     .from('user_episodes')
