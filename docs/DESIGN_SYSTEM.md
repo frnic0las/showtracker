@@ -84,7 +84,7 @@ Use system font stack: `-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pr
 
 ### Bottom Navigation
 
-- 4 tabs: Series, Movies, Calendar, Profile
+- 3 tabs: Series, Movies, Profile
 - Fixed at bottom, 49px height + safe area
 - Icons: 24×24px, centered above 10px caption label
 - Active tab: accent color. Inactive: secondary text color.

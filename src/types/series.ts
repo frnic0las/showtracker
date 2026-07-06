@@ -33,7 +33,7 @@ export interface SeriesWithProgress {
   nextEpisode: NextEpisode | null;
 }
 
-/** A single upcoming episode for the calendar view. */
+/** A single upcoming episode for the Series upcoming view. */
 export interface UpcomingEpisode {
   tmdbId: number;
   title: string;
