@@ -2,6 +2,7 @@
   "name": "ShowTracker",
   "short_name": "ShowTracker",
   "description": "Track watched TV series and movies, episode by episode.",
+  "id": "/",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
