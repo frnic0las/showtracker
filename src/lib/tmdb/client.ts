@@ -1,6 +1,7 @@
 import { requireEnv } from '@/lib/env';
 import type {
   TmdbErrorResponse,
+  TmdbFindResponse,
   TmdbMovieDetails,
   TmdbSearchResponse,
   TmdbSeasonDetails,
@@ -96,4 +97,16 @@ export async function getSeasonDetails(
 /** Fetches movie details. */
 export async function getMovieDetails(id: string): Promise<TmdbMovieDetails> {
   return tmdbFetch<TmdbMovieDetails>(`/movie/${id}`);
+}
+
+/**
+ * Resolves an external id (e.g. a TVDB or IMDB id) to TMDB entries via the
+ * `/find` endpoint. Returns empty result arrays when nothing matches — it does
+ * not throw a 404 for unknown ids.
+ */
+export async function findByExternalId(
+  externalId: string,
+  source: 'tvdb_id' | 'imdb_id',
+): Promise<TmdbFindResponse> {
+  return tmdbFetch<TmdbFindResponse>(`/find/${externalId}`, { external_source: source });
 }

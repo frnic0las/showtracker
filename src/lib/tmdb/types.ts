@@ -74,6 +74,15 @@ export interface TmdbMovieDetails {
   status: string;
 }
 
+/**
+ * Response from TMDB's `/find/{external_id}` endpoint. Each array holds the
+ * matches for the queried external id; typically zero or one entry.
+ */
+export interface TmdbFindResponse {
+  movie_results: TmdbSearchResultItem[];
+  tv_results: TmdbSearchResultItem[];
+}
+
 /** Error shape returned by TMDB on non-2xx responses. */
 export interface TmdbErrorResponse {
   status_code: number;
