@@ -24,6 +24,14 @@ export function ServiceWorkerRegistration() {
       });
     };
 
+    // The effect runs after hydration, by which point `load` may already have
+    // fired (common on repeat visits with warm caches) — a listener added now
+    // would never run. Register immediately in that case.
+    if (document.readyState === 'complete') {
+      register();
+      return;
+    }
+
     window.addEventListener('load', register);
     return () => window.removeEventListener('load', register);
   }, []);

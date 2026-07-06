@@ -69,8 +69,22 @@ function isStaticAsset(url) {
   );
 }
 
+/**
+ * True for TMDB posters/backdrops. The app renders them through Next.js
+ * `<Image>`, so the browser actually requests the same-origin optimizer route
+ * `/_next/image?url=<encoded tmdb url>&w=…&q=…` rather than image.tmdb.org
+ * directly. Match both: the optimizer route (the real production case) and a
+ * bare image.tmdb.org request (in case a raw <img> is ever used).
+ */
 function isTmdbImage(url) {
-  return url.hostname === 'image.tmdb.org';
+  if (url.hostname === 'image.tmdb.org') {
+    return true;
+  }
+  if (url.origin === self.location.origin && url.pathname === '/_next/image') {
+    const target = url.searchParams.get('url');
+    return target != null && target.startsWith('https://image.tmdb.org/');
+  }
+  return false;
 }
 
 /**
@@ -113,7 +127,8 @@ async function handleStaticAsset(request) {
     }
     return response;
   } catch {
-    return cached ?? Response.error();
+    // `cached` is necessarily undefined here — a cache hit early-returns above.
+    return Response.error();
   }
 }
 
@@ -122,7 +137,7 @@ async function handleStaticAsset(request) {
  * instantly for a snappy UI, then refresh it in the background so future
  * visits stay up to date.
  */
-async function handleTmdbImage(request) {
+async function handleTmdbImage(request, event) {
   const cache = await caches.open(RUNTIME_CACHE);
   const cached = await cache.match(request);
 
@@ -136,6 +151,9 @@ async function handleTmdbImage(request) {
     .catch(() => undefined);
 
   if (cached) {
+    // Keep the worker alive until the background refresh finishes; otherwise
+    // it may be terminated before the cache is updated.
+    event.waitUntil(networkFetch);
     return cached;
   }
 
@@ -170,7 +188,7 @@ self.addEventListener('fetch', (event) => {
   }
 
   if (isTmdbImage(url)) {
-    event.respondWith(handleTmdbImage(request));
+    event.respondWith(handleTmdbImage(request, event));
     return;
   }
 
