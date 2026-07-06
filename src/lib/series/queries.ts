@@ -11,6 +11,7 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import { getSeasonDetails, getSeriesDetails, TmdbApiError } from '@/lib/tmdb/client';
+import type { TmdbSeasonSummary } from '@/lib/tmdb/types';
 import type {
   EpisodeWithStatus,
   NextEpisode,
@@ -256,6 +257,68 @@ interface UserEpisodeWatchedRow {
 }
 
 /**
+ * Fetches every non-special season of a series from TMDB and upserts the
+ * resulting episodes into `episodes_cache` with the service-role client
+ * (cache tables are read-only for authenticated users under RLS).
+ *
+ * Seasons are fetched independently with `Promise.allSettled`: TMDB
+ * occasionally 500s or omits a season that `seasons` advertises, and one bad
+ * season should not blow away the rest — every season that succeeds is cached
+ * and the failures are logged. Shared by the on-demand detail refresh and the
+ * add-series flow so both warm the same episode data the same way.
+ */
+export async function warmEpisodesCache(
+  tmdbId: number,
+  seasons: TmdbSeasonSummary[],
+): Promise<void> {
+  const seasonNumbers = seasons
+    .map((season) => season.season_number)
+    .filter((seasonNumber) => seasonNumber > 0);
+
+  const settled = await Promise.allSettled(
+    seasonNumbers.map((seasonNumber) => getSeasonDetails(String(tmdbId), String(seasonNumber))),
+  );
+  const fetchedSeasons = settled.flatMap((outcome, index) => {
+    if (outcome.status === 'fulfilled') {
+      return [outcome.value];
+    }
+    console.warn(
+      `Failed to fetch season ${seasonNumbers[index]} of series ${tmdbId}:`,
+      outcome.reason,
+    );
+    return [];
+  });
+
+  const fetchedAt = new Date().toISOString();
+  const episodeRows = fetchedSeasons.flatMap((season) =>
+    season.episodes.map((episode) => ({
+      tmdb_series_id: tmdbId,
+      season_number: season.season_number,
+      episode_number: episode.episode_number,
+      name: episode.name,
+      overview: episode.overview,
+      air_date: episode.air_date || null,
+      still_path: episode.still_path,
+      runtime: episode.runtime,
+      last_fetched_at: fetchedAt,
+    })),
+  );
+
+  if (episodeRows.length === 0) {
+    return;
+  }
+
+  const admin = createAdminClient();
+  const { error: episodesCacheError } = await admin
+    .from('episodes_cache')
+    .upsert(episodeRows, { onConflict: 'tmdb_series_id,season_number,episode_number' });
+
+  if (episodesCacheError) {
+    throw new Error(`Could not save episode details: ${episodesCacheError.message}`);
+  }
+}
+
+/**
  * Refreshes `series_cache` and `episodes_cache` for one series from TMDB,
  * fetching every non-special season in parallel. Writes with the
  * service-role client since cache tables are read-only for authenticated
@@ -294,51 +357,7 @@ async function refreshSeriesCache(tmdbId: number): Promise<boolean> {
     throw new Error(`Could not save series details: ${seriesCacheError.message}`);
   }
 
-  const seasonNumbers = details.seasons
-    .map((season) => season.season_number)
-    .filter((seasonNumber) => seasonNumber > 0);
-
-  // Fetch seasons independently: TMDB occasionally 500s or omits a season that
-  // `details.seasons` advertises. One bad season should not blow away the whole
-  // refresh, so we cache every season that succeeded and log the rest.
-  const settled = await Promise.allSettled(
-    seasonNumbers.map((seasonNumber) => getSeasonDetails(String(tmdbId), String(seasonNumber))),
-  );
-  const seasons = settled.flatMap((outcome, index) => {
-    if (outcome.status === 'fulfilled') {
-      return [outcome.value];
-    }
-    console.warn(
-      `Failed to refresh season ${seasonNumbers[index]} of series ${tmdbId}:`,
-      outcome.reason,
-    );
-    return [];
-  });
-
-  const fetchedAt = new Date().toISOString();
-  const episodeRows = seasons.flatMap((season) =>
-    season.episodes.map((episode) => ({
-      tmdb_series_id: tmdbId,
-      season_number: season.season_number,
-      episode_number: episode.episode_number,
-      name: episode.name,
-      overview: episode.overview,
-      air_date: episode.air_date || null,
-      still_path: episode.still_path,
-      runtime: episode.runtime,
-      last_fetched_at: fetchedAt,
-    })),
-  );
-
-  if (episodeRows.length > 0) {
-    const { error: episodesCacheError } = await admin
-      .from('episodes_cache')
-      .upsert(episodeRows, { onConflict: 'tmdb_series_id,season_number,episode_number' });
-
-    if (episodesCacheError) {
-      throw new Error(`Could not save episode details: ${episodesCacheError.message}`);
-    }
-  }
+  await warmEpisodesCache(tmdbId, details.seasons);
 
   return true;
 }
