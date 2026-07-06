@@ -12,9 +12,11 @@ import { markInternalNavigation } from '@/lib/navigation';
 export function NavigationTracker() {
   const pathname = usePathname();
   const entryPath = useRef(pathname);
+  const marked = useRef(false);
 
   useEffect(() => {
-    if (pathname !== entryPath.current) {
+    if (!marked.current && pathname !== entryPath.current) {
+      marked.current = true;
       markInternalNavigation();
     }
   }, [pathname]);
