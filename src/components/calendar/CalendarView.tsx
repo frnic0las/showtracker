@@ -84,6 +84,7 @@ function EpisodeSection({ heading, episodes, variant }: EpisodeSectionProps) {
                 seasonNumber={episode.seasonNumber}
                 episodeNumber={episode.episodeNumber}
                 name={episode.name}
+                airDate={episode.airDate}
                 variant={variant}
               />
             ))}

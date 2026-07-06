@@ -1,6 +1,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { WatchToggle } from '@/components/ui/WatchToggle';
+import { daysUntil } from '@/lib/dates';
 import { posterUrl } from '@/lib/tmdb/images';
 
 interface EpisodeEntryProps {
@@ -10,25 +11,10 @@ interface EpisodeEntryProps {
   seasonNumber: number;
   episodeNumber: number;
   name: string | null;
-  /** `catchup` shows a watch-toggle; `upcoming` shows a chevron affordance. */
+  /** Episode air date (`YYYY-MM-DD`); drives the `upcoming` countdown badge. */
+  airDate: string;
+  /** `catchup` shows a watch-toggle; `upcoming` shows a countdown badge. */
   variant: 'catchup' | 'upcoming';
-}
-
-function ChevronIcon() {
-  return (
-    <svg
-      className="h-5 w-5"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M9 6l6 6-6 6" />
-    </svg>
-  );
 }
 
 // Shared row chrome: flex layout, padding, and the inset top separator on
@@ -41,10 +27,10 @@ const ROW_CLASS =
  * Single calendar row: poster + series title + episode label, linking to the
  * series detail page.
  *
- * `upcoming` rows are a single Link (chevron included) so the whole row — and
- * the chevron affordance — navigates. `catchup` rows instead wrap only the
- * poster + text in the Link and render the interactive `WatchToggle` as a
- * sibling, avoiding invalid `<button>`-inside-`<a>` markup.
+ * `upcoming` rows are a single Link (badge included) so the whole row
+ * navigates. `catchup` rows instead wrap only the poster + text in the Link and
+ * render the interactive `WatchToggle` as a sibling, avoiding invalid
+ * `<button>`-inside-`<a>` markup.
  */
 export function EpisodeEntry({
   tmdbId,
@@ -53,6 +39,7 @@ export function EpisodeEntry({
   seasonNumber,
   episodeNumber,
   name,
+  airDate,
   variant,
 }: EpisodeEntryProps) {
   const poster = posterUrl(posterPath, 'w185');
@@ -80,11 +67,22 @@ export function EpisodeEntry({
   );
 
   if (variant === 'upcoming') {
+    const days = daysUntil(airDate);
+
     return (
       <Link href={`/series/${tmdbId}`} className={ROW_CLASS}>
         {body}
-        <div className="shrink-0 text-text-tertiary">
-          <ChevronIcon />
+        <div className="min-w-[52px] shrink-0 text-center">
+          {days === 0 ? (
+            <p className="text-[15px] font-bold text-accent-orange">Today</p>
+          ) : (
+            <>
+              <p className="text-[22px] font-bold leading-none text-accent-orange">{days}</p>
+              <p className="mt-0.5 text-[11px] uppercase tracking-wide text-text-secondary">
+                {days === 1 ? 'day' : 'days'}
+              </p>
+            </>
+          )}
         </div>
       </Link>
     );
