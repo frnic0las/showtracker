@@ -9,7 +9,9 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "echo \"No tests yet\" && exit 0",
-    "import:tvtime": "tsx scripts/import-tvtime.ts"
+    "import:tvtime": "tsx scripts/import-tvtime.ts",
+    "generate:icons": "node scripts/generate-icons.mjs",
+    "generate:splash": "node scripts/generate-splash.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.0",
