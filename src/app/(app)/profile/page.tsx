@@ -4,8 +4,7 @@ import { StatsSummary } from '@/components/profile/StatsSummary';
 import { TmdbAttribution } from '@/components/profile/TmdbAttribution';
 import { getUserStats } from '@/lib/stats/queries';
 import { createClient } from '@/lib/supabase/server';
-
-const APP_VERSION = '0.1.0';
+import pkg from '../../../../package.json';
 
 export default async function ProfilePage() {
   const supabase = await createClient();
@@ -49,7 +48,7 @@ export default async function ProfilePage() {
           <div className="overflow-hidden rounded-md bg-bg-elevated">
             <div className="flex min-h-11 items-center justify-between gap-3 px-4 py-2">
               <span className="text-[17px] text-text-primary">Version</span>
-              <span className="text-[15px] text-text-secondary">{APP_VERSION}</span>
+              <span className="text-[15px] text-text-secondary">{pkg.version}</span>
             </div>
             <div className="ml-4 border-b border-separator" />
             <TmdbAttribution />
