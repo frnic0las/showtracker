@@ -69,7 +69,12 @@ TV Time exports ~1,780 "special" episodes (season 0). TMDB handles specials diff
 NEXT_PUBLIC_SUPABASE_URL=...
 SUPABASE_SERVICE_ROLE_KEY=...   # Service role to bypass RLS during import
 TMDB_API_KEY=...
+# Optional: IMPORT_USER_ID=<uuid>  # target user; defaults to the sole auth user
 
-# Run:
-pnpm tsx scripts/import-tvtime.ts ./data/tvtime-series.json ./data/tvtime-movies.json
+# Run (file paths may be given in either order):
+pnpm import:tvtime ./data/tvtime-series.json ./data/tvtime-movies.json
 ```
+
+> Note: `episodes_cache` is not fetched during import (that would exceed the
+> TMDB rate limit and the time budget); it is populated on demand when a series
+> is first viewed. Watched history (`user_episodes`) is imported in full.
