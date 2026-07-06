@@ -1,6 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { warmEpisodesCache } from '@/lib/series/queries';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import { getSeriesDetails, TmdbApiError } from '@/lib/tmdb/client';
@@ -108,6 +109,17 @@ export async function addSeries(tmdbId: number): Promise<AddSeriesResult> {
 
   if (trackError) {
     return { ok: false, error: 'Could not add series to your list. Please try again.' };
+  }
+
+  // Warm `episodes_cache` now so progress and Upcoming are correct immediately,
+  // instead of only after the detail page is first opened. Best-effort: the
+  // series is already tracked, so a transient TMDB/DB hiccup here must not fail
+  // the add — the on-demand refresh in `getSeriesDetailWithProgress` remains the
+  // fallback that fills the cache later.
+  try {
+    await warmEpisodesCache(details.id, details.seasons);
+  } catch (error) {
+    console.warn(`Failed to warm episodes cache for series ${details.id}:`, error);
   }
 
   revalidatePath('/series');
