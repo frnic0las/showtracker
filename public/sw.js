@@ -95,8 +95,12 @@ function isTmdbImage(url) {
 async function handleNavigation(request) {
   try {
     const response = await fetch(request);
-    const cache = await caches.open(RUNTIME_CACHE);
-    cache.put(request, response.clone());
+    // Only cache successful responses: a transient 500 must not be served
+    // from cache the moment the user goes offline instead of the fallback.
+    if (response.ok) {
+      const cache = await caches.open(RUNTIME_CACHE);
+      cache.put(request, response.clone());
+    }
     return response;
   } catch {
     const cache = await caches.open(RUNTIME_CACHE);
