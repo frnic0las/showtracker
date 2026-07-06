@@ -119,7 +119,7 @@ export function MoviesSearchSheet({ addedIds }: MoviesSearchSheetProps) {
           {results.map((item) => {
             const isAdded = added.has(item.tmdbId);
             const isPending = pendingId === item.tmdbId;
-            const poster = posterUrl(item.posterPath, 'w154');
+            const poster = posterUrl(item.posterPath, 'w185');
 
             return (
               <li key={item.tmdbId}>
