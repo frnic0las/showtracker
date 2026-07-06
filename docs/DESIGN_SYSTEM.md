@@ -151,6 +151,16 @@ Use system font stack: `-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pr
 - Always use `next/image` with proper width/height for layout stability
 - Placeholder: solid gray background matching the image dimensions
 
+### List Thumbnail (canonical)
+
+- **Single canonical size for every poster shown inline in a list row: 60×90px** (2:3 ratio).
+- Applies to: series/movie search results, upcoming episode rows, and any future list row
+  with a poster. Do not introduce alternate list-thumbnail sizes.
+- Source image: `w185`. Radius: `radius-sm` (8px). Missing/loading state: gray
+  `bg-bg-secondary` block at the same 60×90 dimensions.
+- Detail-page posters (`w342`) and full-bleed grids (`PosterGrid`) are separate concepts and
+  are not governed by this size.
+
 ## Status Badges
 
 | Status     | Color         | Label       |
