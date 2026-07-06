@@ -1,8 +1,10 @@
+import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { SeriesSearch } from '@/components/series/SeriesSearch';
 import { SeriesTabs } from '@/components/series/SeriesTabs';
 import { ToWatchView } from '@/components/series/ToWatchView';
 import { UpcomingView } from '@/components/series/UpcomingView';
+import { localTodayIsoDate, TZ_COOKIE } from '@/lib/dates';
 import { getUpcomingEpisodes, getUserSeriesWithProgress } from '@/lib/series/queries';
 import { createClient } from '@/lib/supabase/server';
 
@@ -16,9 +18,12 @@ export default async function SeriesPage() {
     redirect('/login');
   }
 
+  const cookieStore = await cookies();
+  const today = localTodayIsoDate(cookieStore.get(TZ_COOKIE)?.value);
+
   const [series, upcoming] = await Promise.all([
     getUserSeriesWithProgress(user.id),
-    getUpcomingEpisodes(user.id),
+    getUpcomingEpisodes(user.id, today),
   ]);
 
   const trackedIds = series.map((item) => item.tmdbId);
@@ -31,7 +36,7 @@ export default async function SeriesPage() {
       </header>
       <SeriesTabs
         toWatch={<ToWatchView series={series} trackedIds={trackedIds} />}
-        upcoming={<UpcomingView episodes={upcoming} />}
+        upcoming={<UpcomingView episodes={upcoming} today={today} />}
       />
     </div>
   );

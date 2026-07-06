@@ -7,6 +7,7 @@ import type { UpcomingEpisode } from '@/types/series';
 
 interface UpcomingViewProps {
   episodes: UpcomingEpisode[];
+  today: string;
 }
 
 type BucketKey = 'today' | 'tomorrow' | 'thisWeek' | 'later';
@@ -51,7 +52,7 @@ function CalendarIcon({ className }: { className?: string }) {
  * "Upcoming" sub-tab: next air dates for started series, grouped by
  * proximity (Today / Tomorrow / This week / Later) with a day countdown.
  */
-export function UpcomingView({ episodes }: UpcomingViewProps) {
+export function UpcomingView({ episodes, today }: UpcomingViewProps) {
   if (episodes.length === 0) {
     return (
       <CenteredState
@@ -64,7 +65,7 @@ export function UpcomingView({ episodes }: UpcomingViewProps) {
 
   const groups = new Map<BucketKey, { episode: UpcomingEpisode; days: number }[]>();
   for (const episode of episodes) {
-    const days = daysUntil(episode.airDate);
+    const days = daysUntil(episode.airDate, today);
     const bucket = bucketFor(days);
     const group = groups.get(bucket) ?? [];
     group.push({ episode, days });

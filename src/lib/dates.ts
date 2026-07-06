@@ -1,9 +1,13 @@
 /**
- * UTC date helpers for TMDB air dates, which are plain `YYYY-MM-DD` strings
- * with no time or zone. Parsing and comparing in UTC avoids an off-by-one day
- * shift near the user's local midnight. Shared by the series detail formatters
- * and the Upcoming list so the "days until air" logic lives in one place.
+ * Date helpers for TMDB air dates, which are plain `YYYY-MM-DD` strings with
+ * no time or zone. "Today" may be supplied by the caller (typically the
+ * user's local date) while air dates are always parsed as UTC midnight for
+ * the day-delta math, avoiding an off-by-one shift near either midnight.
+ * Shared by the series detail formatters and the Upcoming list so the "days
+ * until air" logic lives in one place.
  */
+
+export const TZ_COOKIE = 'tz';
 
 export const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -18,7 +22,28 @@ export function todayIsoDate(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-/** Whole days from today (UTC) until `dateStr`; negative once it has aired. */
-export function daysUntil(dateStr: string): number {
-  return Math.round((parseUtcDate(dateStr) - parseUtcDate(todayIsoDate())) / DAY_MS);
+/**
+ * Today's date as a `YYYY-MM-DD` string in the given IANA timezone. Falls
+ * back to `todayIsoDate()` (UTC) when `timeZone` is falsy or invalid.
+ */
+export function localTodayIsoDate(timeZone?: string): string {
+  if (!timeZone) {
+    return todayIsoDate();
+  }
+
+  try {
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(new Date());
+  } catch {
+    return todayIsoDate();
+  }
+}
+
+/** Whole days from `today` until `dateStr`; negative once it has aired. */
+export function daysUntil(dateStr: string, today: string = todayIsoDate()): number {
+  return Math.round((parseUtcDate(dateStr) - parseUtcDate(today)) / DAY_MS);
 }
