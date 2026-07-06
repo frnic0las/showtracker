@@ -74,7 +74,3 @@ TMDB_API_KEY=...
 # Run (file paths may be given in either order):
 pnpm import:tvtime ./data/tvtime-series.json ./data/tvtime-movies.json
 ```
-
-> Note: `episodes_cache` is not fetched during import (that would exceed the
-> TMDB rate limit and the time budget); it is populated on demand when a series
-> is first viewed. Watched history (`user_episodes`) is imported in full.

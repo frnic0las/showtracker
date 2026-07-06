@@ -12,11 +12,9 @@
  * The script is idempotent: user rows are inserted with ON CONFLICT DO NOTHING
  * and cache rows are upserted, so it can be re-run safely.
  *
- * Note on scope: `series_cache` and `movies_cache` are populated here, but
- * per-episode metadata (`episodes_cache`) is intentionally NOT fetched — the
- * app populates it on demand when a series is first viewed. This keeps the
- * import within TMDB's rate limit and the required time budget. Watched
- * history (`user_episodes`) is imported in full regardless.
+ * Cache tables `series_cache`, `episodes_cache` and `movies_cache` are fully
+ * populated from TMDB so the series list RPC has episode data to compute
+ * progress and the next episode right after import.
  */
 import './load-env';
 
@@ -27,9 +25,14 @@ import {
   TmdbApiError,
   findByExternalId,
   getMovieDetails,
+  getSeasonDetails,
   getSeriesDetails,
 } from '@/lib/tmdb/client';
-import type { TmdbMovieDetails, TmdbSeriesDetails } from '@/lib/tmdb/types';
+import type {
+  TmdbMovieDetails,
+  TmdbSeasonDetails,
+  TmdbSeriesDetails,
+} from '@/lib/tmdb/types';
 
 // --- TV Time export shapes (only the fields we consume) --------------------
 
@@ -223,6 +226,7 @@ async function resolveUserId(admin: AdminClient): Promise<string> {
 interface ImportSummary {
   seriesMatched: number;
   seriesUnmatched: string[];
+  episodesCached: number;
   episodesImported: number;
   episodesSkippedSpecials: number;
   moviesMatched: number;
@@ -266,12 +270,13 @@ async function importSeries(
       continue;
     }
 
-    const cached = await cacheSeries(admin, tmdbId);
-    if (!cached) {
+    const cachedEpisodes = await cacheSeries(admin, tmdbId);
+    if (cachedEpisodes === null) {
       console.warn(`${position} ${show.title}: TMDB details unavailable, skipped`);
       summary.seriesUnmatched.push(show.title);
       continue;
     }
+    summary.episodesCached += cachedEpisodes;
 
     const status = mapSeriesStatus(show.status);
     const { error: userSeriesError } = await admin
@@ -304,7 +309,9 @@ async function importSeries(
 
     summary.seriesMatched += 1;
     summary.episodesImported += insertedEpisodes;
-    console.log(`${position} ${show.title} → tmdb ${tmdbId} (${status}, ${insertedEpisodes} new episodes)`);
+    console.log(
+      `${position} ${show.title} → tmdb ${tmdbId} (${status}, ${cachedEpisodes} episodes cached, ${insertedEpisodes} watched)`,
+    );
   }
 }
 
@@ -363,22 +370,37 @@ function collectWatchedEpisodes(
   return [...rows.values()];
 }
 
+interface EpisodeCacheRow {
+  tmdb_series_id: number;
+  season_number: number;
+  episode_number: number;
+  name: string;
+  overview: string;
+  air_date: string | null;
+  still_path: string | null;
+  runtime: number | null;
+  last_fetched_at: string;
+}
+
 /**
- * Upserts a series' TMDB metadata into `series_cache`. Returns false when the
- * series no longer exists on TMDB (404).
+ * Upserts a series' TMDB metadata into `series_cache` and every non-special
+ * season's episodes into `episodes_cache` (the series list RPC joins the latter
+ * for progress and next-episode data). Returns the number of episodes cached,
+ * or null when the series no longer exists on TMDB (404).
  */
-async function cacheSeries(admin: AdminClient, tmdbId: number): Promise<boolean> {
+async function cacheSeries(admin: AdminClient, tmdbId: number): Promise<number | null> {
   let details: TmdbSeriesDetails;
   try {
     details = await tmdbRequest(() => getSeriesDetails(String(tmdbId)), `tv details ${tmdbId}`);
   } catch (error) {
     if (error instanceof TmdbApiError && error.status === 404) {
-      return false;
+      return null;
     }
     throw error;
   }
 
-  const { error } = await admin.from('series_cache').upsert(
+  const fetchedAt = new Date().toISOString();
+  const { error: seriesError } = await admin.from('series_cache').upsert(
     {
       tmdb_id: details.id,
       title: details.name,
@@ -388,14 +410,57 @@ async function cacheSeries(admin: AdminClient, tmdbId: number): Promise<boolean>
       status: details.status || null,
       total_seasons: details.number_of_seasons,
       first_air_date: details.first_air_date || null,
-      last_fetched_at: new Date().toISOString(),
+      last_fetched_at: fetchedAt,
     },
     { onConflict: 'tmdb_id' },
   );
-  if (error) {
-    throw new Error(`Could not cache series ${tmdbId}: ${error.message}`);
+  if (seriesError) {
+    throw new Error(`Could not cache series ${tmdbId}: ${seriesError.message}`);
   }
-  return true;
+
+  const seasonNumbers = details.seasons
+    .map((season) => season.season_number)
+    .filter((seasonNumber) => seasonNumber > 0);
+
+  const episodeRows: EpisodeCacheRow[] = [];
+  for (const seasonNumber of seasonNumbers) {
+    let season: TmdbSeasonDetails;
+    try {
+      season = await tmdbRequest(
+        () => getSeasonDetails(String(tmdbId), String(seasonNumber)),
+        `tv ${tmdbId} season ${seasonNumber}`,
+      );
+    } catch (error) {
+      // A single missing/failed season (TMDB occasionally 404s or 500s one it
+      // advertises) must not abort the whole series — cache the rest.
+      console.warn(`  ⚠ series ${tmdbId} season ${seasonNumber}: ${describeError(error)}`);
+      continue;
+    }
+    for (const episode of season.episodes) {
+      episodeRows.push({
+        tmdb_series_id: tmdbId,
+        season_number: season.season_number,
+        episode_number: episode.episode_number,
+        name: episode.name,
+        overview: episode.overview,
+        air_date: episode.air_date || null,
+        still_path: episode.still_path,
+        runtime: episode.runtime,
+        last_fetched_at: fetchedAt,
+      });
+    }
+  }
+
+  if (episodeRows.length > 0) {
+    const { error: episodesError } = await admin
+      .from('episodes_cache')
+      .upsert(episodeRows, { onConflict: 'tmdb_series_id,season_number,episode_number' });
+    if (episodesError) {
+      throw new Error(`Could not cache episodes for series ${tmdbId}: ${episodesError.message}`);
+    }
+  }
+
+  return episodeRows.length;
 }
 
 // --- Import: movies --------------------------------------------------------
@@ -559,6 +624,7 @@ async function main(): Promise<void> {
   const summary: ImportSummary = {
     seriesMatched: 0,
     seriesUnmatched: [],
+    episodesCached: 0,
     episodesImported: 0,
     episodesSkippedSpecials: 0,
     moviesMatched: 0,
@@ -572,6 +638,7 @@ async function main(): Promise<void> {
 
   console.log('\n─── Summary ───────────────────────────────');
   console.log(`Series matched:     ${summary.seriesMatched}/${series.length}`);
+  console.log(`Episodes cached:    ${summary.episodesCached}`);
   console.log(`Episodes imported:  ${summary.episodesImported} (${summary.episodesSkippedSpecials} specials skipped)`);
   console.log(`Movies matched:     ${summary.moviesMatched}/${movies.length}`);
   console.log(`Elapsed:            ${elapsedSec}s`);
