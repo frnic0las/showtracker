@@ -8,6 +8,7 @@
  * progress calculation in this module.
  */
 
+import { todayIsoDate } from '@/lib/dates';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import { getSeasonDetails, getSeriesDetails, TmdbApiError } from '@/lib/tmdb/client';
@@ -117,7 +118,10 @@ interface EpisodeCacheWithAirDateRow {
  * series the user has marked as `watching`, ordered by air date ascending,
  * for the calendar view.
  */
-export async function getUpcomingEpisodes(userId: string): Promise<UpcomingEpisode[]> {
+export async function getUpcomingEpisodes(
+  userId: string,
+  today: string = todayIsoDate(),
+): Promise<UpcomingEpisode[]> {
   const supabase = await createClient();
 
   const { data: watching, error: watchingError } = await supabase
@@ -147,8 +151,6 @@ export async function getUpcomingEpisodes(userId: string): Promise<UpcomingEpiso
   }
 
   const seriesById = new Map((seriesCache ?? []).map((row) => [row.tmdb_id, row]));
-
-  const today = new Date().toISOString().slice(0, 10);
 
   const { data: episodes, error: episodesError } = await supabase
     .from('episodes_cache')
