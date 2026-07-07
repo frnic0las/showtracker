@@ -1,0 +1,952 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ShowTracker — Movies list sort options (issue #82, mockups)</title>
+    <style>
+      /* ------------------------------------------------------------------ *
+       * Design tokens — mirrors docs/DESIGN_SYSTEM.md and src/app/globals.css
+       * ------------------------------------------------------------------ */
+      :root {
+        --bg-primary: #ffffff;
+        --bg-secondary: #f2f2f7;
+        --bg-elevated: #ffffff;
+        --text-primary: #000000;
+        --text-secondary: rgba(60, 60, 67, 0.6);
+        --text-tertiary: rgba(60, 60, 67, 0.3);
+        --separator: rgba(60, 60, 67, 0.12);
+        --accent: #007aff;
+        --accent-green: #34c759;
+        --accent-red: #ff3b30;
+        --accent-orange: #ff9500;
+
+        --radius-sm: 8px;
+        --radius-md: 12px;
+        --radius-lg: 16px;
+
+        /* Chrome around the phone frames (not part of the app palette) */
+        --stage-bg: #e5e5ea;
+        --frame-border: rgba(0, 0, 0, 0.14);
+        --label-color: #48484a;
+        /* Pull-down menu material (iOS "thick" translucency) */
+        --menu-material: rgba(249, 249, 249, 0.86);
+        --menu-hairline: rgba(60, 60, 67, 0.14);
+        --menu-shadow: rgba(0, 0, 0, 0.24);
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg-primary: #000000;
+          --bg-secondary: #1c1c1e;
+          --bg-elevated: #2c2c2e;
+          --text-primary: #ffffff;
+          --text-secondary: rgba(235, 235, 245, 0.6);
+          --text-tertiary: rgba(235, 235, 245, 0.3);
+          --separator: rgba(84, 84, 88, 0.65);
+          --accent: #0a84ff;
+          --accent-green: #30d158;
+          --accent-red: #ff453a;
+          --accent-orange: #ff9f0a;
+
+          --stage-bg: #0c0c0e;
+          --frame-border: rgba(255, 255, 255, 0.16);
+          --label-color: #aeaeb2;
+          --menu-material: rgba(44, 44, 46, 0.82);
+          --menu-hairline: rgba(84, 84, 88, 0.6);
+          --menu-shadow: rgba(0, 0, 0, 0.5);
+        }
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display",
+          system-ui, sans-serif;
+        background: var(--stage-bg);
+        color: var(--text-primary);
+        -webkit-font-smoothing: antialiased;
+        padding: 40px 24px 80px;
+      }
+
+      .page-title {
+        text-align: center;
+        max-width: 760px;
+        margin: 0 auto 8px;
+        color: var(--label-color);
+      }
+      .page-title h1 {
+        font-size: 24px;
+        font-weight: 700;
+        color: var(--text-primary);
+      }
+      .page-title p {
+        font-size: 14px;
+        margin-top: 6px;
+        line-height: 1.5;
+      }
+
+      /* ------------------------------------------------------------------ *
+       * Gallery + phone frame chrome
+       * ------------------------------------------------------------------ */
+      .gallery {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 48px 40px;
+        justify-content: center;
+        align-items: flex-start;
+        margin-top: 48px;
+      }
+      .frame-wrap {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 14px;
+      }
+      .frame-label {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--label-color);
+        text-align: center;
+        max-width: 390px;
+      }
+      .frame-label span {
+        display: block;
+        font-weight: 400;
+        font-size: 12px;
+        opacity: 0.8;
+        margin-top: 2px;
+      }
+
+      /* The phone: exactly 390px wide viewport, per deliverable spec */
+      .phone {
+        position: relative;
+        width: 390px;
+        height: 800px;
+        background: var(--bg-primary);
+        border: 10px solid #1a1a1c;
+        border-radius: 44px;
+        overflow: hidden;
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.28);
+      }
+      .viewport {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+
+      /* iOS status bar */
+      .statusbar {
+        height: 44px;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 24px;
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--text-primary);
+        z-index: 5;
+      }
+      .statusbar .glyphs {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+      }
+      .statusbar svg {
+        display: block;
+      }
+
+      .content {
+        flex: 1;
+        overflow: hidden;
+        padding-bottom: 92px;
+      }
+
+      /* ------------------------------------------------------------------ *
+       * Movies tab header (large title + add button)
+       * ------------------------------------------------------------------ */
+      .movies-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 16px 6px;
+      }
+      .movies-header h1 {
+        font-size: 34px;
+        font-weight: 700;
+        letter-spacing: -0.5px;
+        color: var(--text-primary);
+      }
+      .header-add {
+        width: 44px;
+        height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--accent);
+        border: none;
+        background: none;
+      }
+
+      /* Archive sub-page nav bar (Watched screens) */
+      .navbar {
+        position: relative;
+        height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-bottom: 0.5px solid var(--separator);
+        background: color-mix(in srgb, var(--bg-primary) 80%, transparent);
+      }
+      .navbar h1 {
+        font-size: 17px;
+        font-weight: 600;
+        color: var(--text-primary);
+      }
+      .navbar .back {
+        position: absolute;
+        left: 8px;
+        display: inline-flex;
+        align-items: center;
+        gap: 2px;
+        height: 44px;
+        padding: 0 8px;
+        font-size: 17px;
+        color: var(--accent);
+        border: none;
+        background: none;
+      }
+
+      /* ------------------------------------------------------------------ *
+       * Section header row: title + count on the left, sort control right
+       * ------------------------------------------------------------------ */
+      .section-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 16px 16px 8px;
+      }
+      .section-head .lead {
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+      }
+      .section-head h2 {
+        font-size: 20px;
+        font-weight: 600;
+        letter-spacing: -0.3px;
+        color: var(--text-primary);
+      }
+      .section-head .count {
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--text-secondary);
+        font-variant-numeric: tabular-nums;
+      }
+
+      /* Sort trigger — a trailing pull-down button (iOS UIMenu source).
+         Shows the ACTIVE sort so the current order is always legible; the
+         stacked up/down chevron is the canonical "pull-down" affordance. */
+      .sort-trigger {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        min-height: 44px;
+        padding: 0 2px 0 8px;
+        border: none;
+        background: none;
+        font-family: inherit;
+        font-size: 15px;
+        font-weight: 500;
+        color: var(--accent);
+        cursor: pointer;
+      }
+      .sort-trigger .chev {
+        color: var(--accent);
+        opacity: 0.9;
+      }
+      .sort-trigger.open {
+        opacity: 0.5; /* iOS dims the source while its menu is open */
+      }
+
+      /* ------------------------------------------------------------------ *
+       * Poster grid (mirrors MoviesList / MovieCard)
+       * ------------------------------------------------------------------ */
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        column-gap: 12px;
+        row-gap: 16px;
+        padding: 0 16px;
+      }
+      .movie {
+        min-width: 0;
+      }
+      .poster {
+        position: relative;
+        aspect-ratio: 2 / 3;
+        border-radius: var(--radius-md);
+        background: var(--bg-secondary);
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .poster .art {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 22px;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        color: color-mix(in srgb, var(--text-secondary) 55%, transparent);
+        background: linear-gradient(
+          150deg,
+          color-mix(in srgb, var(--accent) 16%, var(--bg-secondary)),
+          var(--bg-secondary) 68%
+        );
+      }
+      .toggle {
+        position: absolute;
+        top: 4px;
+        right: 4px;
+        width: 44px;
+        height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: none;
+        background: none;
+      }
+      .toggle .dot {
+        width: 28px;
+        height: 28px;
+        border-radius: 9999px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 2px solid #ffffff;
+        background: rgba(0, 0, 0, 0.35);
+        color: transparent;
+        backdrop-filter: blur(3px);
+        -webkit-backdrop-filter: blur(3px);
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+      }
+      .toggle .dot.watched {
+        border-color: var(--accent-green);
+        background: var(--accent-green);
+        color: #ffffff;
+      }
+      .movie .title {
+        margin-top: 8px;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text-primary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .movie .year {
+        font-size: 12px;
+        color: var(--text-secondary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      /* "Watched" archive link on the Movies tab (mirrors MoviesList) */
+      .archive-link {
+        margin: 24px 16px 4px;
+        min-height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 12px 16px;
+        border: 0.5px solid var(--separator);
+        border-radius: var(--radius-md);
+        background: var(--bg-elevated);
+        color: var(--text-primary);
+      }
+      .archive-link .lead {
+        font-size: 15px;
+      }
+      .archive-link .lead small {
+        display: block;
+        margin-top: 2px;
+        font-size: 13px;
+        color: var(--text-secondary);
+      }
+      .archive-link .chev {
+        color: var(--text-tertiary);
+        flex-shrink: 0;
+      }
+
+      /* Hint pill (from issue #80, kept so the surface reads unchanged) */
+      .hint {
+        margin: 4px 16px 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        font-size: 13px;
+        color: var(--text-secondary);
+      }
+      .hint svg {
+        flex-shrink: 0;
+        color: var(--text-tertiary);
+      }
+
+      /* ------------------------------------------------------------------ *
+       * Bottom tab bar
+       * ------------------------------------------------------------------ */
+      .tabbar {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: 68px;
+        display: flex;
+        border-top: 0.5px solid var(--separator);
+        background: color-mix(in srgb, var(--bg-primary) 82%, transparent);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        z-index: 6;
+      }
+      .tab {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 3px;
+        font-size: 10px;
+        color: var(--text-secondary);
+      }
+      .tab.active {
+        color: var(--accent);
+      }
+
+      /* ------------------------------------------------------------------ *
+       * Pull-down sort menu (iOS UIMenu) — anchored under the trigger.
+       * A faint scrim catches an outside tap to dismiss; the menu itself is
+       * translucent material with a soft shadow.
+       * ------------------------------------------------------------------ */
+      .menu-scrim {
+        position: absolute;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.04);
+        z-index: 7;
+      }
+      .sort-menu {
+        position: absolute;
+        z-index: 8;
+        width: 232px;
+        background: var(--menu-material);
+        backdrop-filter: blur(28px) saturate(180%);
+        -webkit-backdrop-filter: blur(28px) saturate(180%);
+        border-radius: 13px;
+        overflow: hidden;
+        box-shadow: 0 12px 32px var(--menu-shadow);
+        transform-origin: top right;
+      }
+      /* Anchored just below the section-header sort trigger, right-aligned */
+      .sort-menu.on-watchlist {
+        top: 150px;
+        right: 12px;
+      }
+      .sort-menu.on-archive {
+        top: 106px;
+        right: 12px;
+      }
+      .menu-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        width: 100%;
+        min-height: 44px;
+        padding: 0 14px;
+        border: none;
+        background: none;
+        font-family: inherit;
+        font-size: 17px;
+        color: var(--text-primary);
+        text-align: left;
+        cursor: pointer;
+      }
+      .menu-item + .menu-item {
+        border-top: 0.5px solid var(--menu-hairline);
+      }
+      .menu-item .check {
+        color: var(--accent);
+        flex-shrink: 0;
+        opacity: 0; /* only the active option shows a checkmark */
+      }
+      .menu-item.selected {
+        font-weight: 600;
+      }
+      .menu-item.selected .check {
+        opacity: 1;
+      }
+
+      .caption-note {
+        max-width: 760px;
+        margin: 56px auto 0;
+        font-size: 13px;
+        color: var(--label-color);
+        line-height: 1.6;
+        text-align: center;
+      }
+      code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page-title">
+      <h1>Movies list — sort options</h1>
+      <p>
+        Issue #82 — all screens at a 390px viewport. Toggle your OS light/dark to preview both
+        themes. Sorting is a trailing pull-down menu in the section header (iOS UIMenu), scoping the
+        order to the section it labels. The trigger always shows the active sort; the menu marks it
+        with a checkmark. Modelled as a <code>?sort=</code> query param so the grid stays a Server
+        Component.
+      </p>
+    </div>
+
+    <div class="gallery">
+      <!-- ============================================================= -->
+      <!-- 1. WATCHLIST — rest state, sort control in section header      -->
+      <!-- ============================================================= -->
+      <div class="frame-wrap">
+        <div class="frame-label">
+          1 · Movies tab — Watchlist
+          <span>Rest state · sort trigger shows the active order (default: Recently added)</span>
+        </div>
+        <div class="phone">
+          <div class="viewport">
+            <div class="statusbar">
+              <span>9:41</span>
+              <span class="glyphs">
+                <svg width="18" height="12" viewBox="0 0 18 12" fill="currentColor"><rect x="0" y="7" width="3" height="5" rx="1"/><rect x="4" y="5" width="3" height="7" rx="1"/><rect x="8" y="3" width="3" height="9" rx="1"/><rect x="12" y="1" width="3" height="11" rx="1"/></svg>
+                <svg width="26" height="12" viewBox="0 0 26 12" fill="none"><rect x="1" y="1" width="21" height="10" rx="2.5" stroke="currentColor" opacity=".4"/><rect x="3" y="3" width="16" height="6" rx="1" fill="currentColor"/><rect x="23" y="4" width="1.5" height="4" rx=".75" fill="currentColor" opacity=".5"/></svg>
+              </span>
+            </div>
+            <div class="content">
+              <div class="movies-header">
+                <h1>Movies</h1>
+                <button class="header-add" aria-label="Add movie">
+                  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+                </button>
+              </div>
+
+              <div class="section-head">
+                <div class="lead">
+                  <h2>Watchlist</h2>
+                  <span class="count">· 6</span>
+                </div>
+                <button class="sort-trigger" aria-haspopup="menu" aria-expanded="false">
+                  Recently added
+                  <svg class="chev" width="12" height="16" viewBox="0 0 12 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 6L6 3.5 8.5 6"/><path d="M3.5 10L6 12.5 8.5 10"/></svg>
+                </button>
+              </div>
+
+              <div class="grid">
+                <div class="movie">
+                  <div class="poster"><span class="art">DU</span><button class="toggle" aria-label="Mark Dune: Part Two as watched"><span class="dot"></span></button></div>
+                  <div class="title">Dune: Part Two</div>
+                  <div class="year">2024</div>
+                </div>
+                <div class="movie">
+                  <div class="poster"><span class="art">PT</span><button class="toggle" aria-label="Mark Poor Things as watched"><span class="dot"></span></button></div>
+                  <div class="title">Poor Things</div>
+                  <div class="year">2023</div>
+                </div>
+                <div class="movie">
+                  <div class="poster"><span class="art">ZI</span><button class="toggle" aria-label="Mark The Zone of Interest as watched"><span class="dot"></span></button></div>
+                  <div class="title">The Zone of Interest</div>
+                  <div class="year">2023</div>
+                </div>
+                <div class="movie">
+                  <div class="poster"><span class="art">CH</span><button class="toggle" aria-label="Mark Challengers as watched"><span class="dot"></span></button></div>
+                  <div class="title">Challengers</div>
+                  <div class="year">2024</div>
+                </div>
+                <div class="movie">
+                  <div class="poster"><span class="art">NF</span><button class="toggle" aria-label="Mark Nosferatu as watched"><span class="dot"></span></button></div>
+                  <div class="title">Nosferatu</div>
+                  <div class="year">2024</div>
+                </div>
+                <div class="movie">
+                  <div class="poster"><span class="art">AN</span><button class="toggle" aria-label="Mark Anora as watched"><span class="dot"></span></button></div>
+                  <div class="title">Anora</div>
+                  <div class="year">2024</div>
+                </div>
+              </div>
+
+              <div class="hint">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11.5a3 3 0 1 1 6 0c0 2-3 2.5-3 4.5"/><circle cx="12" cy="19" r="0.6" fill="currentColor"/><rect x="3" y="3" width="18" height="18" rx="5"/></svg>
+                Touch and hold a poster to mark it or remove it.
+              </div>
+
+              <div class="archive-link">
+                <span class="lead">Watched<small>Movies you've seen</small></span>
+                <svg class="chev" width="9" height="16" viewBox="0 0 9 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 1l6 7-6 7"/></svg>
+              </div>
+            </div>
+
+            <div class="tabbar">
+              <div class="tab">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 4v16M17 4v16M3 9h4M17 9h4M3 15h4M17 15h4"/></svg>
+                Series
+              </div>
+              <div class="tab active">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M7 4v5M17 4v5"/></svg>
+                Movies
+              </div>
+              <div class="tab">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg>
+                Profile
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============================================================= -->
+      <!-- 2. WATCHLIST — sort menu open                                  -->
+      <!-- ============================================================= -->
+      <div class="frame-wrap">
+        <div class="frame-label">
+          2 · Tap the sort trigger → pull-down menu
+          <span>Four options · active one carries a checkmark · tap outside to dismiss</span>
+        </div>
+        <div class="phone">
+          <div class="viewport">
+            <div class="statusbar">
+              <span>9:41</span>
+              <span class="glyphs">
+                <svg width="18" height="12" viewBox="0 0 18 12" fill="currentColor"><rect x="0" y="7" width="3" height="5" rx="1"/><rect x="4" y="5" width="3" height="7" rx="1"/><rect x="8" y="3" width="3" height="9" rx="1"/><rect x="12" y="1" width="3" height="11" rx="1"/></svg>
+                <svg width="26" height="12" viewBox="0 0 26 12" fill="none"><rect x="1" y="1" width="21" height="10" rx="2.5" stroke="currentColor" opacity=".4"/><rect x="3" y="3" width="16" height="6" rx="1" fill="currentColor"/><rect x="23" y="4" width="1.5" height="4" rx=".75" fill="currentColor" opacity=".5"/></svg>
+              </span>
+            </div>
+            <div class="content">
+              <div class="movies-header">
+                <h1>Movies</h1>
+                <button class="header-add" aria-label="Add movie">
+                  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+                </button>
+              </div>
+
+              <div class="section-head">
+                <div class="lead">
+                  <h2>Watchlist</h2>
+                  <span class="count">· 6</span>
+                </div>
+                <button class="sort-trigger open" aria-haspopup="menu" aria-expanded="true">
+                  Recently added
+                  <svg class="chev" width="12" height="16" viewBox="0 0 12 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 6L6 3.5 8.5 6"/><path d="M3.5 10L6 12.5 8.5 10"/></svg>
+                </button>
+              </div>
+
+              <div class="grid">
+                <div class="movie">
+                  <div class="poster"><span class="art">DU</span><button class="toggle" aria-label="Mark Dune: Part Two as watched"><span class="dot"></span></button></div>
+                  <div class="title">Dune: Part Two</div>
+                  <div class="year">2024</div>
+                </div>
+                <div class="movie">
+                  <div class="poster"><span class="art">PT</span><button class="toggle" aria-label="Mark Poor Things as watched"><span class="dot"></span></button></div>
+                  <div class="title">Poor Things</div>
+                  <div class="year">2023</div>
+                </div>
+                <div class="movie">
+                  <div class="poster"><span class="art">ZI</span><button class="toggle" aria-label="Mark The Zone of Interest as watched"><span class="dot"></span></button></div>
+                  <div class="title">The Zone of Interest</div>
+                  <div class="year">2023</div>
+                </div>
+                <div class="movie">
+                  <div class="poster"><span class="art">CH</span><button class="toggle" aria-label="Mark Challengers as watched"><span class="dot"></span></button></div>
+                  <div class="title">Challengers</div>
+                  <div class="year">2024</div>
+                </div>
+                <div class="movie">
+                  <div class="poster"><span class="art">NF</span><button class="toggle" aria-label="Mark Nosferatu as watched"><span class="dot"></span></button></div>
+                  <div class="title">Nosferatu</div>
+                  <div class="year">2024</div>
+                </div>
+                <div class="movie">
+                  <div class="poster"><span class="art">AN</span><button class="toggle" aria-label="Mark Anora as watched"><span class="dot"></span></button></div>
+                  <div class="title">Anora</div>
+                  <div class="year">2024</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Faint scrim + the pull-down menu anchored under the trigger -->
+            <div class="menu-scrim"></div>
+            <div class="sort-menu on-watchlist" role="menu">
+              <button class="menu-item selected" role="menuitemradio" aria-checked="true">
+                Recently added
+                <svg class="check" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+              </button>
+              <button class="menu-item" role="menuitemradio" aria-checked="false">
+                Oldest added
+                <svg class="check" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+              </button>
+              <button class="menu-item" role="menuitemradio" aria-checked="false">
+                Title (A–Z)
+                <svg class="check" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+              </button>
+              <button class="menu-item" role="menuitemradio" aria-checked="false">
+                Release year
+                <svg class="check" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+              </button>
+            </div>
+
+            <div class="tabbar">
+              <div class="tab">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 4v16M17 4v16M3 9h4M17 9h4M3 15h4M17 15h4"/></svg>
+                Series
+              </div>
+              <div class="tab active">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M7 4v5M17 4v5"/></svg>
+                Movies
+              </div>
+              <div class="tab">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg>
+                Profile
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============================================================= -->
+      <!-- 3. WATCHLIST — result after choosing Title (A–Z)               -->
+      <!-- ============================================================= -->
+      <div class="frame-wrap">
+        <div class="frame-label">
+          3 · After choosing “Title (A–Z)”
+          <span>Grid re-sorts · trigger label updates to the active order</span>
+        </div>
+        <div class="phone">
+          <div class="viewport">
+            <div class="statusbar">
+              <span>9:41</span>
+              <span class="glyphs">
+                <svg width="18" height="12" viewBox="0 0 18 12" fill="currentColor"><rect x="0" y="7" width="3" height="5" rx="1"/><rect x="4" y="5" width="3" height="7" rx="1"/><rect x="8" y="3" width="3" height="9" rx="1"/><rect x="12" y="1" width="3" height="11" rx="1"/></svg>
+                <svg width="26" height="12" viewBox="0 0 26 12" fill="none"><rect x="1" y="1" width="21" height="10" rx="2.5" stroke="currentColor" opacity=".4"/><rect x="3" y="3" width="16" height="6" rx="1" fill="currentColor"/><rect x="23" y="4" width="1.5" height="4" rx=".75" fill="currentColor" opacity=".5"/></svg>
+              </span>
+            </div>
+            <div class="content">
+              <div class="movies-header">
+                <h1>Movies</h1>
+                <button class="header-add" aria-label="Add movie">
+                  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+                </button>
+              </div>
+
+              <div class="section-head">
+                <div class="lead">
+                  <h2>Watchlist</h2>
+                  <span class="count">· 6</span>
+                </div>
+                <button class="sort-trigger" aria-haspopup="menu" aria-expanded="false">
+                  Title (A–Z)
+                  <svg class="chev" width="12" height="16" viewBox="0 0 12 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 6L6 3.5 8.5 6"/><path d="M3.5 10L6 12.5 8.5 10"/></svg>
+                </button>
+              </div>
+
+              <div class="grid">
+                <div class="movie">
+                  <div class="poster"><span class="art">AN</span><button class="toggle" aria-label="Mark Anora as watched"><span class="dot"></span></button></div>
+                  <div class="title">Anora</div>
+                  <div class="year">2024</div>
+                </div>
+                <div class="movie">
+                  <div class="poster"><span class="art">CH</span><button class="toggle" aria-label="Mark Challengers as watched"><span class="dot"></span></button></div>
+                  <div class="title">Challengers</div>
+                  <div class="year">2024</div>
+                </div>
+                <div class="movie">
+                  <div class="poster"><span class="art">DU</span><button class="toggle" aria-label="Mark Dune: Part Two as watched"><span class="dot"></span></button></div>
+                  <div class="title">Dune: Part Two</div>
+                  <div class="year">2024</div>
+                </div>
+                <div class="movie">
+                  <div class="poster"><span class="art">NF</span><button class="toggle" aria-label="Mark Nosferatu as watched"><span class="dot"></span></button></div>
+                  <div class="title">Nosferatu</div>
+                  <div class="year">2024</div>
+                </div>
+                <div class="movie">
+                  <div class="poster"><span class="art">PT</span><button class="toggle" aria-label="Mark Poor Things as watched"><span class="dot"></span></button></div>
+                  <div class="title">Poor Things</div>
+                  <div class="year">2023</div>
+                </div>
+                <div class="movie">
+                  <div class="poster"><span class="art">ZI</span><button class="toggle" aria-label="Mark The Zone of Interest as watched"><span class="dot"></span></button></div>
+                  <div class="title">The Zone of Interest</div>
+                  <div class="year">2023</div>
+                </div>
+              </div>
+
+              <div class="hint">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11.5a3 3 0 1 1 6 0c0 2-3 2.5-3 4.5"/><circle cx="12" cy="19" r="0.6" fill="currentColor"/><rect x="3" y="3" width="18" height="18" rx="5"/></svg>
+                Touch and hold a poster to mark it or remove it.
+              </div>
+
+              <div class="archive-link">
+                <span class="lead">Watched<small>Movies you've seen</small></span>
+                <svg class="chev" width="9" height="16" viewBox="0 0 9 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 1l6 7-6 7"/></svg>
+              </div>
+            </div>
+
+            <div class="tabbar">
+              <div class="tab">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 4v16M17 4v16M3 9h4M17 9h4M3 15h4M17 15h4"/></svg>
+                Series
+              </div>
+              <div class="tab active">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M7 4v5M17 4v5"/></svg>
+                Movies
+              </div>
+              <div class="tab">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg>
+                Profile
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============================================================= -->
+      <!-- 4. WATCHED ARCHIVE — menu open (options adapt to the section)  -->
+      <!-- ============================================================= -->
+      <div class="frame-wrap">
+        <div class="frame-label">
+          4 · Watched archive — same control, section-aware labels
+          <span>“Recently/Oldest watched” (by watched date) replaces “…added”</span>
+        </div>
+        <div class="phone">
+          <div class="viewport">
+            <div class="statusbar">
+              <span>9:41</span>
+              <span class="glyphs">
+                <svg width="18" height="12" viewBox="0 0 18 12" fill="currentColor"><rect x="0" y="7" width="3" height="5" rx="1"/><rect x="4" y="5" width="3" height="7" rx="1"/><rect x="8" y="3" width="3" height="9" rx="1"/><rect x="12" y="1" width="3" height="11" rx="1"/></svg>
+                <svg width="26" height="12" viewBox="0 0 26 12" fill="none"><rect x="1" y="1" width="21" height="10" rx="2.5" stroke="currentColor" opacity=".4"/><rect x="3" y="3" width="16" height="6" rx="1" fill="currentColor"/><rect x="23" y="4" width="1.5" height="4" rx=".75" fill="currentColor" opacity=".5"/></svg>
+              </span>
+            </div>
+
+            <div class="navbar">
+              <button class="back">
+                <svg width="12" height="20" viewBox="0 0 12 20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2L3 10l6 8"/></svg>
+                Movies
+              </button>
+              <h1>Watched</h1>
+            </div>
+
+            <div class="content">
+              <div class="section-head">
+                <div class="lead">
+                  <h2>Watched</h2>
+                  <span class="count">· 6</span>
+                </div>
+                <button class="sort-trigger open" aria-haspopup="menu" aria-expanded="true">
+                  Recently watched
+                  <svg class="chev" width="12" height="16" viewBox="0 0 12 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 6L6 3.5 8.5 6"/><path d="M3.5 10L6 12.5 8.5 10"/></svg>
+                </button>
+              </div>
+
+              <div class="grid">
+                <div class="movie">
+                  <div class="poster"><span class="art">OP</span><button class="toggle" aria-label="Mark Oppenheimer as unwatched"><span class="dot watched"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-11"/></svg></span></button></div>
+                  <div class="title">Oppenheimer</div>
+                  <div class="year">2023</div>
+                </div>
+                <div class="movie">
+                  <div class="poster"><span class="art">PL</span><button class="toggle" aria-label="Mark Past Lives as unwatched"><span class="dot watched"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-11"/></svg></span></button></div>
+                  <div class="title">Past Lives</div>
+                  <div class="year">2023</div>
+                </div>
+                <div class="movie">
+                  <div class="poster"><span class="art">KF</span><button class="toggle" aria-label="Mark Killers of the Flower Moon as unwatched"><span class="dot watched"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-11"/></svg></span></button></div>
+                  <div class="title">Killers of the Flower Moon</div>
+                  <div class="year">2023</div>
+                </div>
+                <div class="movie">
+                  <div class="poster"><span class="art">LL</span><button class="toggle" aria-label="Mark La La Land as unwatched"><span class="dot watched"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-11"/></svg></span></button></div>
+                  <div class="title">La La Land</div>
+                  <div class="year">2016</div>
+                </div>
+                <div class="movie">
+                  <div class="poster"><span class="art">PA</span><button class="toggle" aria-label="Mark Parasite as unwatched"><span class="dot watched"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-11"/></svg></span></button></div>
+                  <div class="title">Parasite</div>
+                  <div class="year">2019</div>
+                </div>
+                <div class="movie">
+                  <div class="poster"><span class="art">WH</span><button class="toggle" aria-label="Mark Whiplash as unwatched"><span class="dot watched"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-11"/></svg></span></button></div>
+                  <div class="title">Whiplash</div>
+                  <div class="year">2014</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Faint scrim + the pull-down menu anchored under the trigger -->
+            <div class="menu-scrim"></div>
+            <div class="sort-menu on-archive" role="menu">
+              <button class="menu-item selected" role="menuitemradio" aria-checked="true">
+                Recently watched
+                <svg class="check" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+              </button>
+              <button class="menu-item" role="menuitemradio" aria-checked="false">
+                Oldest watched
+                <svg class="check" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+              </button>
+              <button class="menu-item" role="menuitemradio" aria-checked="false">
+                Title (A–Z)
+                <svg class="check" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+              </button>
+              <button class="menu-item" role="menuitemradio" aria-checked="false">
+                Release year
+                <svg class="check" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+              </button>
+            </div>
+
+            <div class="tabbar">
+              <div class="tab">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 4v16M17 4v16M3 9h4M17 9h4M3 15h4M17 15h4"/></svg>
+                Series
+              </div>
+              <div class="tab active">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M7 4v5M17 4v5"/></svg>
+                Movies
+              </div>
+              <div class="tab">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg>
+                Profile
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="caption-note">
+      Sort is scoped per section and persisted via a <code>?sort=</code> query param, so the poster
+      grids stay Server Components — only the small menu toggle is a client island. See
+      <code>README.md</code> for the component mapping, param values, and the query change.
+    </div>
+  </body>
+</html>
