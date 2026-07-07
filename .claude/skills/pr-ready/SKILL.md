@@ -45,3 +45,21 @@ Fix any failures before proceeding.
 - [ ] Commits follow convention: `feat(scope): description`
 - [ ] No unrelated changes in the diff: `git diff main --stat`
 - [ ] PR description references the issue: `Closes #<number>`
+
+## 6. Verify the push landed on remote (MANDATORY)
+
+Do not report success until the remote branch actually matches your local HEAD.
+`git push` can fail silently — piping its output through `tail`/`head`/`grep`
+masks the failure because the pipe returns the last command's exit code, not
+git's.
+
+- [ ] Never pipe `git push` through `tail`/`head`/`grep` without `set -o pipefail`.
+- [ ] After pushing, verify remote state directly:
+
+  ```
+  git fetch origin && git rev-parse HEAD "origin/$(git rev-parse --abbrev-ref HEAD)"
+  ```
+
+- [ ] The two SHAs must be identical. If they differ, the push failed — report
+      the failure and do **not** claim success.
+- [ ] Any "committed and pushed" report must include the remote SHA as proof.
