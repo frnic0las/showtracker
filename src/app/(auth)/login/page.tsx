@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { useActionState } from 'react';
 import { login } from '@/actions/auth';
 import { Input } from '@/components/ui/input';
@@ -38,13 +37,6 @@ export default function LoginPage() {
           {isPending ? 'Logging in…' : 'Log in'}
         </button>
       </form>
-
-      <p className="text-center text-[15px] text-text-secondary">
-        Don&apos;t have an account?{' '}
-        <Link href="/signup" className="text-accent">
-          Sign up
-        </Link>
-      </p>
     </div>
   );
 }
