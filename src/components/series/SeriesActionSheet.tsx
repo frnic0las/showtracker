@@ -117,6 +117,7 @@ export function SeriesActionSheet({
   const [mode, setMode] = useState<'sheet' | 'confirm'>('sheet');
   const [mounted, setMounted] = useState(false);
   const [shown, setShown] = useState(false);
+  const [confirmShown, setConfirmShown] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -134,6 +135,17 @@ export function SeriesActionSheet({
     const timer = setTimeout(() => setMounted(false), 300);
     return () => clearTimeout(timer);
   }, [open]);
+
+  // The confirm alert swaps in while the overlay is already open (`shown` is
+  // true), so it needs its own enter trigger: flip `confirmShown` on the next
+  // frame after entering confirm mode to play the fade + scale-in.
+  useEffect(() => {
+    if (open && mode === 'confirm') {
+      const raf = requestAnimationFrame(() => setConfirmShown(true));
+      return () => cancelAnimationFrame(raf);
+    }
+    setConfirmShown(false);
+  }, [open, mode]);
 
   // Lock body scroll and wire Escape-to-close while the overlay is open.
   useEffect(() => {
@@ -273,8 +285,8 @@ export function SeriesActionSheet({
               role="alertdialog"
               aria-modal="true"
               aria-label={`Remove ${title}?`}
-              className={`relative w-[270px] overflow-hidden rounded-[14px] bg-bg-elevated/95 text-center backdrop-blur-xl transition-transform duration-200 ease-out ${
-                shown ? 'scale-100' : 'scale-95'
+              className={`relative w-[270px] overflow-hidden rounded-[14px] bg-bg-elevated/95 text-center backdrop-blur-xl transition duration-200 ease-out ${
+                confirmShown ? 'scale-100 opacity-100' : 'scale-95 opacity-0'
               }`}
             >
               <div className="px-4 pb-[18px] pt-5">
