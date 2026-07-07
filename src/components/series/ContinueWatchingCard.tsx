@@ -40,6 +40,7 @@ export function ContinueWatchingCard({ tmdbSeriesId, episode }: ContinueWatching
         seasonNumber={episode.seasonNumber}
         episodeNumber={episode.episodeNumber}
         watched={episode.watched}
+        airDate={episode.airDate}
       />
     </div>
   );

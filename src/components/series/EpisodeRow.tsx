@@ -48,6 +48,7 @@ export function EpisodeRow({
         seasonNumber={seasonNumber}
         episodeNumber={episodeNumber}
         watched={watched}
+        airDate={airDate}
       />
     </div>
   );
