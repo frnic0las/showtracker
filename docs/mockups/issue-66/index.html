@@ -1,0 +1,1134 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ShowTracker — Series status actions (issue #66, mockups)</title>
+    <style>
+      /* ------------------------------------------------------------------ *
+       * Design tokens — mirrors docs/DESIGN_SYSTEM.md and src/app/globals.css
+       * ------------------------------------------------------------------ */
+      :root {
+        --bg-primary: #ffffff;
+        --bg-secondary: #f2f2f7;
+        --bg-elevated: #ffffff;
+        --text-primary: #000000;
+        --text-secondary: rgba(60, 60, 67, 0.6);
+        --text-tertiary: rgba(60, 60, 67, 0.3);
+        --separator: rgba(60, 60, 67, 0.12);
+        --accent: #007aff;
+        --accent-green: #34c759;
+        --accent-red: #ff3b30;
+        --accent-orange: #ff9500;
+
+        --radius-sm: 8px;
+        --radius-md: 12px;
+        --radius-lg: 16px;
+
+        /* Chrome around the phone frames (not part of the app palette) */
+        --stage-bg: #e5e5ea;
+        --frame-border: rgba(0, 0, 0, 0.14);
+        --label-color: #48484a;
+        /* Action-sheet / alert material (iOS "thick" translucency) */
+        --sheet-material: rgba(249, 249, 249, 0.94);
+        --sheet-hairline: rgba(60, 60, 67, 0.16);
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg-primary: #000000;
+          --bg-secondary: #1c1c1e;
+          --bg-elevated: #2c2c2e;
+          --text-primary: #ffffff;
+          --text-secondary: rgba(235, 235, 245, 0.6);
+          --text-tertiary: rgba(235, 235, 245, 0.3);
+          --separator: rgba(84, 84, 88, 0.65);
+          --accent: #0a84ff;
+          --accent-green: #30d158;
+          --accent-red: #ff453a;
+          --accent-orange: #ff9f0a;
+
+          --stage-bg: #0c0c0e;
+          --frame-border: rgba(255, 255, 255, 0.16);
+          --label-color: #aeaeb2;
+          --sheet-material: rgba(37, 37, 39, 0.94);
+          --sheet-hairline: rgba(84, 84, 88, 0.6);
+        }
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display",
+          system-ui, sans-serif;
+        background: var(--stage-bg);
+        color: var(--text-primary);
+        -webkit-font-smoothing: antialiased;
+        padding: 40px 24px 80px;
+      }
+
+      .page-title {
+        text-align: center;
+        max-width: 760px;
+        margin: 0 auto 8px;
+        color: var(--label-color);
+      }
+      .page-title h1 {
+        font-size: 24px;
+        font-weight: 700;
+        color: var(--text-primary);
+      }
+      .page-title p {
+        font-size: 14px;
+        margin-top: 6px;
+        line-height: 1.5;
+      }
+
+      /* ------------------------------------------------------------------ *
+       * Gallery + phone frame chrome
+       * ------------------------------------------------------------------ */
+      .gallery {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 48px 40px;
+        justify-content: center;
+        align-items: flex-start;
+        margin-top: 48px;
+      }
+      .frame-wrap {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 14px;
+      }
+      .frame-label {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--label-color);
+        text-align: center;
+        max-width: 390px;
+      }
+      .frame-label span {
+        display: block;
+        font-weight: 400;
+        font-size: 12px;
+        opacity: 0.8;
+        margin-top: 2px;
+      }
+
+      /* The phone: exactly 390px wide viewport, per deliverable spec */
+      .phone {
+        position: relative;
+        width: 390px;
+        height: 800px;
+        background: var(--bg-primary);
+        border: 10px solid #1a1a1c;
+        border-radius: 44px;
+        overflow: hidden;
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.28);
+      }
+      .viewport {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+
+      /* iOS status bar */
+      .statusbar {
+        height: 44px;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 24px;
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--text-primary);
+        z-index: 5;
+      }
+      .statusbar .glyphs {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+      }
+      .statusbar svg {
+        display: block;
+      }
+
+      .detail-content {
+        flex: 1;
+        overflow-y: auto;
+        overflow-x: hidden;
+        padding-bottom: 92px;
+      }
+
+      /* ------------------------------------------------------------------ *
+       * Series detail — hero
+       * ------------------------------------------------------------------ */
+      .hero {
+        position: relative;
+        height: 220px;
+        background: var(--bg-secondary);
+        display: flex;
+        align-items: flex-end;
+        overflow: hidden;
+      }
+      .hero-placeholder {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--text-tertiary);
+        font-size: 13px;
+        font-weight: 600;
+        letter-spacing: 0.4px;
+      }
+      .hero-gradient {
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+          to top,
+          var(--bg-primary) 2%,
+          color-mix(in srgb, var(--bg-primary) 60%, transparent) 26%,
+          transparent 60%
+        );
+      }
+      /* Translucent round hero controls (back + more) */
+      .hero-btn {
+        position: absolute;
+        top: 8px;
+        width: 44px;
+        height: 44px;
+        border-radius: 9999px;
+        background: color-mix(in srgb, var(--bg-primary) 55%, transparent);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--text-primary);
+        border: none;
+        z-index: 3;
+        cursor: pointer;
+      }
+      .hero-btn.back {
+        left: 12px;
+      }
+      .hero-btn.more {
+        right: 12px;
+      }
+      .hero-content {
+        position: relative;
+        padding: 0 16px 16px;
+        z-index: 2;
+        width: 100%;
+      }
+      .detail-title {
+        font-size: 28px;
+        font-weight: 700;
+        letter-spacing: -0.3px;
+        color: var(--text-primary);
+        line-height: 1.1;
+      }
+      .detail-meta {
+        font-size: 13px;
+        color: var(--text-secondary);
+        margin-top: 8px;
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .detail-meta .dot {
+        opacity: 0.5;
+      }
+      .meta-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-weight: 600;
+        color: var(--accent-orange);
+      }
+      .meta-status.ended {
+        color: var(--text-secondary);
+      }
+      /* "Stopped" pill shown in the meta line of a paused series */
+      .meta-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-weight: 600;
+        font-size: 12px;
+        color: var(--text-secondary);
+        background: var(--bg-secondary);
+        border-radius: 9999px;
+        padding: 2px 8px;
+      }
+
+      /* ------------------------------------------------------------------ *
+       * Continue-watching card (next unwatched episode)
+       * ------------------------------------------------------------------ */
+      .continue-card {
+        margin: 16px;
+        background: var(--bg-elevated);
+        border: 1px solid var(--separator);
+        border-radius: var(--radius-md);
+        padding: 12px;
+        display: flex;
+        gap: 12px;
+        align-items: center;
+      }
+      .continue-still {
+        width: 104px;
+        height: 60px;
+        border-radius: var(--radius-sm);
+        background: var(--bg-secondary);
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--text-tertiary);
+        font-size: 10px;
+        font-weight: 600;
+        overflow: hidden;
+      }
+      .continue-body {
+        flex: 1;
+        min-width: 0;
+      }
+      .continue-kicker {
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--accent);
+      }
+      .continue-ep {
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-top: 3px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .continue-air {
+        font-size: 12px;
+        color: var(--text-secondary);
+        margin-top: 3px;
+      }
+      .check {
+        width: 28px;
+        height: 28px;
+        border-radius: 9999px;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 2px solid var(--text-tertiary);
+        color: transparent;
+        background: none;
+      }
+      .check.watched {
+        background: var(--accent-green);
+        border-color: var(--accent-green);
+        color: #fff;
+      }
+      .check-hit {
+        width: 44px;
+        height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: none;
+        background: none;
+        flex-shrink: 0;
+        margin: -8px -8px -8px 0;
+        cursor: pointer;
+      }
+
+      /* ------------------------------------------------------------------ *
+       * Stopped banner (replaces the continue card for a paused series)
+       * ------------------------------------------------------------------ */
+      .stopped-banner {
+        margin: 16px;
+        background: var(--bg-secondary);
+        border-radius: var(--radius-md);
+        padding: 14px 16px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .stopped-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 9999px;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: color-mix(in srgb, var(--text-secondary) 18%, transparent);
+        color: var(--text-secondary);
+      }
+      .stopped-body {
+        flex: 1;
+        min-width: 0;
+      }
+      .stopped-title {
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--text-primary);
+      }
+      .stopped-sub {
+        font-size: 13px;
+        color: var(--text-secondary);
+        margin-top: 2px;
+      }
+      /* Tinted iOS resume button (accent, filled-subtle) */
+      .resume-btn {
+        flex-shrink: 0;
+        border: none;
+        cursor: pointer;
+        font-family: inherit;
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--accent);
+        background: color-mix(in srgb, var(--accent) 14%, transparent);
+        border-radius: 9999px;
+        min-height: 44px; /* ≥ 44px touch target per DESIGN_SYSTEM */
+        padding: 0 16px;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+      }
+
+      /* ------------------------------------------------------------------ *
+       * Section title + season accordions
+       * ------------------------------------------------------------------ */
+      .section-title {
+        font-size: 20px;
+        font-weight: 600;
+        letter-spacing: -0.2px;
+        color: var(--text-primary);
+        padding: 16px 16px 8px;
+      }
+      .seasons {
+        padding: 0 16px;
+      }
+      .accordion {
+        background: var(--bg-elevated);
+        border-radius: var(--radius-md);
+        overflow: hidden;
+        margin-bottom: 8px;
+        border: 1px solid var(--separator);
+      }
+      .accordion-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 0 12px;
+        min-height: 52px;
+        cursor: pointer;
+      }
+      .season-name {
+        flex: 1;
+        font-size: 17px;
+        font-weight: 600;
+        color: var(--text-primary);
+      }
+      .season-progress {
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--text-secondary);
+        font-variant-numeric: tabular-nums;
+      }
+      .season-progress.complete {
+        color: var(--accent-green);
+      }
+      .season-check {
+        color: var(--accent-green);
+        display: flex;
+      }
+      .accordion-chevron {
+        color: var(--text-tertiary);
+      }
+      .accordion.open .accordion-chevron {
+        transform: rotate(90deg);
+      }
+      .episode-list {
+        border-top: 1px solid var(--separator);
+      }
+      .episode-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 8px 12px;
+        position: relative;
+      }
+      .episode-row + .episode-row::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 12px;
+        right: 12px;
+        height: 1px;
+        background: var(--separator);
+      }
+      .ep-num {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text-secondary);
+        width: 24px;
+        flex-shrink: 0;
+        font-variant-numeric: tabular-nums;
+      }
+      .ep-body {
+        flex: 1;
+        min-width: 0;
+      }
+      .ep-name {
+        font-size: 17px;
+        color: var(--text-primary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .ep-name.unwatched {
+        font-weight: 600;
+      }
+      .ep-air {
+        font-size: 13px;
+        color: var(--text-secondary);
+        margin-top: 2px;
+      }
+
+      /* ------------------------------------------------------------------ *
+       * Bottom tab bar
+       * ------------------------------------------------------------------ */
+      .tabbar {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: 83px;
+        padding-bottom: 20px;
+        border-top: 1px solid var(--separator);
+        background: color-mix(in srgb, var(--bg-primary) 80%, transparent);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        display: flex;
+        z-index: 4;
+      }
+      .tab {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        color: var(--text-secondary);
+        text-decoration: none;
+      }
+      .tab.active {
+        color: var(--accent);
+      }
+      .tab span {
+        font-size: 10px;
+        line-height: 1;
+      }
+      .home-indicator {
+        position: absolute;
+        bottom: 8px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 134px;
+        height: 5px;
+        border-radius: 3px;
+        background: var(--text-primary);
+        opacity: 0.85;
+        z-index: 5;
+      }
+
+      /* ------------------------------------------------------------------ *
+       * Action sheet (iOS) — overlays the frame
+       * ------------------------------------------------------------------ */
+      .scrim {
+        position: absolute;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.4);
+        z-index: 8;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+      }
+      .action-sheet {
+        padding: 0 8px 8px;
+      }
+      /* Grouped list of primary actions */
+      .sheet-group {
+        background: var(--sheet-material);
+        backdrop-filter: blur(24px);
+        -webkit-backdrop-filter: blur(24px);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+      }
+      .sheet-caption {
+        text-align: center;
+        padding: 14px 16px 12px;
+        font-size: 13px;
+        line-height: 1.35;
+        color: var(--text-secondary);
+        border-bottom: 0.5px solid var(--sheet-hairline);
+      }
+      .sheet-caption strong {
+        color: var(--text-primary);
+        font-weight: 600;
+      }
+      .sheet-action {
+        width: 100%;
+        border: none;
+        background: none;
+        font-family: inherit;
+        font-size: 20px;
+        color: var(--accent);
+        min-height: 57px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        cursor: pointer;
+      }
+      .sheet-action + .sheet-action {
+        border-top: 0.5px solid var(--sheet-hairline);
+      }
+      .sheet-action.strong {
+        font-weight: 600;
+      }
+      .sheet-action.destructive {
+        color: var(--accent-red);
+      }
+      /* Separate "Cancel" group, bold, sits below with a gap */
+      .sheet-cancel {
+        margin-top: 8px;
+        width: 100%;
+        border: none;
+        background: var(--sheet-material);
+        backdrop-filter: blur(24px);
+        -webkit-backdrop-filter: blur(24px);
+        border-radius: var(--radius-lg);
+        font-family: inherit;
+        font-size: 20px;
+        font-weight: 600;
+        color: var(--accent);
+        min-height: 57px;
+        cursor: pointer;
+      }
+
+      /* ------------------------------------------------------------------ *
+       * Destructive confirmation alert (iOS) — centered dialog
+       * ------------------------------------------------------------------ */
+      .scrim.centered {
+        justify-content: center;
+        align-items: center;
+      }
+      .alert {
+        width: 270px;
+        background: var(--sheet-material);
+        backdrop-filter: blur(24px);
+        -webkit-backdrop-filter: blur(24px);
+        border-radius: 14px;
+        overflow: hidden;
+        text-align: center;
+      }
+      .alert-body {
+        padding: 19px 16px 18px;
+      }
+      .alert-title {
+        font-size: 17px;
+        font-weight: 600;
+        color: var(--text-primary);
+      }
+      .alert-msg {
+        font-size: 13px;
+        line-height: 1.35;
+        color: var(--text-primary);
+        margin-top: 4px;
+      }
+      .alert-actions {
+        display: flex;
+        border-top: 0.5px solid var(--sheet-hairline);
+      }
+      .alert-btn {
+        flex: 1;
+        border: none;
+        background: none;
+        font-family: inherit;
+        font-size: 17px;
+        color: var(--accent);
+        min-height: 44px;
+        cursor: pointer;
+      }
+      .alert-btn + .alert-btn {
+        border-left: 0.5px solid var(--sheet-hairline);
+      }
+      .alert-btn.destructive {
+        color: var(--accent-red);
+        font-weight: 600;
+      }
+
+      .caption-note {
+        max-width: 760px;
+        margin: 56px auto 0;
+        font-size: 13px;
+        color: var(--label-color);
+        line-height: 1.6;
+        text-align: center;
+      }
+      code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page-title">
+      <h1>Series status actions — Stop / Resume / Remove</h1>
+      <p>
+        Issue #66 — all screens at a 390px viewport. Toggle your OS light/dark to preview both
+        themes. Extends the series detail page from issue #29.
+      </p>
+    </div>
+
+    <div class="gallery">
+      <!-- ============================================================= -->
+      <!-- 1. DETAIL (watching) — new "•••" more button in the hero       -->
+      <!-- ============================================================= -->
+      <div class="frame-wrap">
+        <div class="frame-label">
+          1 · Detail — watching
+          <span>New “•••” more button in the hero (mirrors Back)</span>
+        </div>
+        <div class="phone">
+          <div class="viewport">
+            <div class="statusbar">
+              <span>9:41</span>
+              <span class="glyphs">
+                <svg width="18" height="12" viewBox="0 0 18 12" fill="currentColor"><rect x="0" y="7" width="3" height="5" rx="1"/><rect x="4" y="5" width="3" height="7" rx="1"/><rect x="8" y="3" width="3" height="9" rx="1"/><rect x="12" y="1" width="3" height="11" rx="1"/></svg>
+                <svg width="26" height="12" viewBox="0 0 26 12" fill="none"><rect x="1" y="1" width="21" height="10" rx="2.5" stroke="currentColor" opacity=".4"/><rect x="3" y="3" width="16" height="6" rx="1" fill="currentColor"/><rect x="23" y="4" width="1.5" height="4" rx=".75" fill="currentColor" opacity=".5"/></svg>
+              </span>
+            </div>
+            <div class="detail-content">
+              <div class="hero">
+                <div class="hero-placeholder">BACKDROP · w780</div>
+                <button class="hero-btn back" aria-label="Back">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
+                </button>
+                <button class="hero-btn more" aria-label="More actions">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>
+                </button>
+                <div class="hero-gradient"></div>
+                <div class="hero-content">
+                  <div class="detail-title">Severance</div>
+                  <div class="detail-meta">
+                    <span>2 seasons</span>
+                    <span class="dot">·</span>
+                    <span class="meta-status"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/></svg>Returning</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="continue-card">
+                <div class="continue-still">STILL</div>
+                <div class="continue-body">
+                  <div class="continue-kicker">Next up</div>
+                  <div class="continue-ep">S2 E3 · Who Is Alive?</div>
+                  <div class="continue-air">Aired Feb 7, 2025</div>
+                </div>
+                <button class="check-hit" aria-label="Mark watched">
+                  <span class="check"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-11"/></svg></span>
+                </button>
+              </div>
+
+              <div class="section-title">Seasons</div>
+              <div class="seasons">
+                <div class="accordion">
+                  <div class="accordion-header">
+                    <span class="season-name">Season 1</span>
+                    <span class="season-progress complete">9/9</span>
+                    <span class="season-check"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8.5 12.5l2.5 2.5 4.5-5"/></svg></span>
+                    <svg class="accordion-chevron" width="9" height="16" viewBox="0 0 9 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 1l6 7-6 7"/></svg>
+                  </div>
+                </div>
+                <div class="accordion open">
+                  <div class="accordion-header">
+                    <span class="season-name">Season 2</span>
+                    <span class="season-progress">2/10</span>
+                    <svg class="accordion-chevron" width="9" height="16" viewBox="0 0 9 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="transform: rotate(90deg)"><path d="M1 1l6 7-6 7"/></svg>
+                  </div>
+                  <div class="episode-list">
+                    <div class="episode-row">
+                      <span class="ep-num">E1</span>
+                      <div class="ep-body"><div class="ep-name">Hello, Ms. Cobel</div><div class="ep-air">Jan 17, 2025</div></div>
+                      <button class="check-hit" aria-label="Mark unwatched"><span class="check watched"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-11"/></svg></span></button>
+                    </div>
+                    <div class="episode-row">
+                      <span class="ep-num">E2</span>
+                      <div class="ep-body"><div class="ep-name">Goodbye, Mrs. Selvig</div><div class="ep-air">Jan 24, 2025</div></div>
+                      <button class="check-hit" aria-label="Mark unwatched"><span class="check watched"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-11"/></svg></span></button>
+                    </div>
+                    <div class="episode-row">
+                      <span class="ep-num">E3</span>
+                      <div class="ep-body"><div class="ep-name unwatched">Who Is Alive?</div><div class="ep-air">Jan 31, 2025</div></div>
+                      <button class="check-hit" aria-label="Mark watched"><span class="check"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-11"/></svg></span></button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <nav class="tabbar">
+              <a class="tab active"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg><span>Series</span></a>
+              <a class="tab"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/><path d="M7 4v5"/><path d="M17 4v5"/></svg><span>Movies</span></a>
+              <a class="tab"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18"/><path d="M8 3v4"/><path d="M16 3v4"/></svg><span>Calendar</span></a>
+              <a class="tab"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4.418 3.582-7 8-7s8 2.582 8 7"/></svg><span>Profile</span></a>
+            </nav>
+            <div class="home-indicator"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============================================================= -->
+      <!-- 2. ACTION SHEET — watching series                              -->
+      <!-- ============================================================= -->
+      <div class="frame-wrap">
+        <div class="frame-label">
+          2 · Action sheet — watching
+          <span>Stop watching · Remove · Cancel</span>
+        </div>
+        <div class="phone">
+          <div class="viewport">
+            <div class="statusbar">
+              <span>9:41</span>
+              <span class="glyphs">
+                <svg width="18" height="12" viewBox="0 0 18 12" fill="currentColor"><rect x="0" y="7" width="3" height="5" rx="1"/><rect x="4" y="5" width="3" height="7" rx="1"/><rect x="8" y="3" width="3" height="9" rx="1"/><rect x="12" y="1" width="3" height="11" rx="1"/></svg>
+                <svg width="26" height="12" viewBox="0 0 26 12" fill="none"><rect x="1" y="1" width="21" height="10" rx="2.5" stroke="currentColor" opacity=".4"/><rect x="3" y="3" width="16" height="6" rx="1" fill="currentColor"/><rect x="23" y="4" width="1.5" height="4" rx=".75" fill="currentColor" opacity=".5"/></svg>
+              </span>
+            </div>
+            <div class="detail-content">
+              <div class="hero">
+                <div class="hero-placeholder">BACKDROP · w780</div>
+                <button class="hero-btn back" aria-label="Back"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>
+                <button class="hero-btn more" aria-label="More actions"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg></button>
+                <div class="hero-gradient"></div>
+                <div class="hero-content">
+                  <div class="detail-title">Severance</div>
+                  <div class="detail-meta">
+                    <span>2 seasons</span>
+                    <span class="dot">·</span>
+                    <span class="meta-status"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/></svg>Returning</span>
+                  </div>
+                </div>
+              </div>
+              <div class="continue-card">
+                <div class="continue-still">STILL</div>
+                <div class="continue-body">
+                  <div class="continue-kicker">Next up</div>
+                  <div class="continue-ep">S2 E3 · Who Is Alive?</div>
+                  <div class="continue-air">Aired Feb 7, 2025</div>
+                </div>
+                <button class="check-hit" aria-label="Mark watched"><span class="check"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-11"/></svg></span></button>
+              </div>
+              <div class="section-title">Seasons</div>
+              <div class="seasons">
+                <div class="accordion">
+                  <div class="accordion-header">
+                    <span class="season-name">Season 1</span>
+                    <span class="season-progress complete">9/9</span>
+                    <span class="season-check"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8.5 12.5l2.5 2.5 4.5-5"/></svg></span>
+                    <svg class="accordion-chevron" width="9" height="16" viewBox="0 0 9 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 1l6 7-6 7"/></svg>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Overlay: dimmed backdrop + action sheet -->
+            <div class="scrim">
+              <div class="action-sheet">
+                <div class="sheet-group">
+                  <div class="sheet-caption"><strong>Severance</strong><br />You’re on S2 E3 · watching</div>
+                  <button class="sheet-action strong">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+                    Stop watching
+                  </button>
+                  <button class="sheet-action destructive">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/><path d="M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12"/></svg>
+                    Remove from library
+                  </button>
+                </div>
+                <button class="sheet-cancel">Cancel</button>
+              </div>
+            </div>
+            <div class="home-indicator"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============================================================= -->
+      <!-- 3. DETAIL (stopped) — banner + inline Resume                   -->
+      <!-- ============================================================= -->
+      <div class="frame-wrap">
+        <div class="frame-label">
+          3 · Detail — stopped
+          <span>“Stopped” banner replaces the continue card · inline Resume</span>
+        </div>
+        <div class="phone">
+          <div class="viewport">
+            <div class="statusbar">
+              <span>9:41</span>
+              <span class="glyphs">
+                <svg width="18" height="12" viewBox="0 0 18 12" fill="currentColor"><rect x="0" y="7" width="3" height="5" rx="1"/><rect x="4" y="5" width="3" height="7" rx="1"/><rect x="8" y="3" width="3" height="9" rx="1"/><rect x="12" y="1" width="3" height="11" rx="1"/></svg>
+                <svg width="26" height="12" viewBox="0 0 26 12" fill="none"><rect x="1" y="1" width="21" height="10" rx="2.5" stroke="currentColor" opacity=".4"/><rect x="3" y="3" width="16" height="6" rx="1" fill="currentColor"/><rect x="23" y="4" width="1.5" height="4" rx=".75" fill="currentColor" opacity=".5"/></svg>
+              </span>
+            </div>
+            <div class="detail-content">
+              <div class="hero">
+                <div class="hero-placeholder">BACKDROP · w780</div>
+                <button class="hero-btn back" aria-label="Back"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>
+                <button class="hero-btn more" aria-label="More actions"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg></button>
+                <div class="hero-gradient"></div>
+                <div class="hero-content">
+                  <div class="detail-title">Severance</div>
+                  <div class="detail-meta">
+                    <span>2 seasons</span>
+                    <span class="dot">·</span>
+                    <span class="meta-pill">
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>
+                      Stopped
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="stopped-banner">
+                <span class="stopped-icon">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+                </span>
+                <div class="stopped-body">
+                  <div class="stopped-title">You stopped watching</div>
+                  <div class="stopped-sub">Paused on S2 E3. Resume any time.</div>
+                </div>
+                <button class="resume-btn">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                  Resume
+                </button>
+              </div>
+
+              <div class="section-title">Seasons</div>
+              <div class="seasons">
+                <div class="accordion">
+                  <div class="accordion-header">
+                    <span class="season-name">Season 1</span>
+                    <span class="season-progress complete">9/9</span>
+                    <span class="season-check"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8.5 12.5l2.5 2.5 4.5-5"/></svg></span>
+                    <svg class="accordion-chevron" width="9" height="16" viewBox="0 0 9 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 1l6 7-6 7"/></svg>
+                  </div>
+                </div>
+                <div class="accordion open">
+                  <div class="accordion-header">
+                    <span class="season-name">Season 2</span>
+                    <span class="season-progress">2/10</span>
+                    <svg class="accordion-chevron" width="9" height="16" viewBox="0 0 9 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="transform: rotate(90deg)"><path d="M1 1l6 7-6 7"/></svg>
+                  </div>
+                  <div class="episode-list">
+                    <div class="episode-row">
+                      <span class="ep-num">E1</span>
+                      <div class="ep-body"><div class="ep-name">Hello, Ms. Cobel</div><div class="ep-air">Jan 17, 2025</div></div>
+                      <button class="check-hit" aria-label="Mark unwatched"><span class="check watched"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-11"/></svg></span></button>
+                    </div>
+                    <div class="episode-row">
+                      <span class="ep-num">E2</span>
+                      <div class="ep-body"><div class="ep-name">Goodbye, Mrs. Selvig</div><div class="ep-air">Jan 24, 2025</div></div>
+                      <button class="check-hit" aria-label="Mark unwatched"><span class="check watched"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-11"/></svg></span></button>
+                    </div>
+                    <div class="episode-row">
+                      <span class="ep-num">E3</span>
+                      <div class="ep-body"><div class="ep-name unwatched">Who Is Alive?</div><div class="ep-air">Jan 31, 2025</div></div>
+                      <button class="check-hit" aria-label="Mark watched"><span class="check"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-11"/></svg></span></button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <nav class="tabbar">
+              <a class="tab active"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg><span>Series</span></a>
+              <a class="tab"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/><path d="M7 4v5"/><path d="M17 4v5"/></svg><span>Movies</span></a>
+              <a class="tab"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18"/><path d="M8 3v4"/><path d="M16 3v4"/></svg><span>Calendar</span></a>
+              <a class="tab"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4.418 3.582-7 8-7s8 2.582 8 7"/></svg><span>Profile</span></a>
+            </nav>
+            <div class="home-indicator"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============================================================= -->
+      <!-- 4. ACTION SHEET — stopped series                               -->
+      <!-- ============================================================= -->
+      <div class="frame-wrap">
+        <div class="frame-label">
+          4 · Action sheet — stopped
+          <span>Resume watching · Remove · Cancel</span>
+        </div>
+        <div class="phone">
+          <div class="viewport">
+            <div class="statusbar">
+              <span>9:41</span>
+              <span class="glyphs">
+                <svg width="18" height="12" viewBox="0 0 18 12" fill="currentColor"><rect x="0" y="7" width="3" height="5" rx="1"/><rect x="4" y="5" width="3" height="7" rx="1"/><rect x="8" y="3" width="3" height="9" rx="1"/><rect x="12" y="1" width="3" height="11" rx="1"/></svg>
+                <svg width="26" height="12" viewBox="0 0 26 12" fill="none"><rect x="1" y="1" width="21" height="10" rx="2.5" stroke="currentColor" opacity=".4"/><rect x="3" y="3" width="16" height="6" rx="1" fill="currentColor"/><rect x="23" y="4" width="1.5" height="4" rx=".75" fill="currentColor" opacity=".5"/></svg>
+              </span>
+            </div>
+            <div class="detail-content">
+              <div class="hero">
+                <div class="hero-placeholder">BACKDROP · w780</div>
+                <button class="hero-btn back" aria-label="Back"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>
+                <button class="hero-btn more" aria-label="More actions"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg></button>
+                <div class="hero-gradient"></div>
+                <div class="hero-content">
+                  <div class="detail-title">Severance</div>
+                  <div class="detail-meta">
+                    <span>2 seasons</span>
+                    <span class="dot">·</span>
+                    <span class="meta-pill"><svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>Stopped</span>
+                  </div>
+                </div>
+              </div>
+              <div class="stopped-banner">
+                <span class="stopped-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="6" width="12" height="12" rx="2"/></svg></span>
+                <div class="stopped-body">
+                  <div class="stopped-title">You stopped watching</div>
+                  <div class="stopped-sub">Paused on S2 E3. Resume any time.</div>
+                </div>
+                <button class="resume-btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>Resume</button>
+              </div>
+              <div class="section-title">Seasons</div>
+              <div class="seasons">
+                <div class="accordion">
+                  <div class="accordion-header">
+                    <span class="season-name">Season 1</span>
+                    <span class="season-progress complete">9/9</span>
+                    <span class="season-check"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8.5 12.5l2.5 2.5 4.5-5"/></svg></span>
+                    <svg class="accordion-chevron" width="9" height="16" viewBox="0 0 9 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 1l6 7-6 7"/></svg>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Overlay: dimmed backdrop + action sheet (stopped variant) -->
+            <div class="scrim">
+              <div class="action-sheet">
+                <div class="sheet-group">
+                  <div class="sheet-caption"><strong>Severance</strong><br />Paused on S2 E3 · stopped</div>
+                  <button class="sheet-action strong">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                    Resume watching
+                  </button>
+                  <button class="sheet-action destructive">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/><path d="M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12"/></svg>
+                    Remove from library
+                  </button>
+                </div>
+                <button class="sheet-cancel">Cancel</button>
+              </div>
+            </div>
+            <div class="home-indicator"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============================================================= -->
+      <!-- 5. REMOVE — destructive confirmation alert                     -->
+      <!-- ============================================================= -->
+      <div class="frame-wrap">
+        <div class="frame-label">
+          5 · Remove — confirmation
+          <span>Destructive alert · deletes watch progress</span>
+        </div>
+        <div class="phone">
+          <div class="viewport">
+            <div class="statusbar">
+              <span>9:41</span>
+              <span class="glyphs">
+                <svg width="18" height="12" viewBox="0 0 18 12" fill="currentColor"><rect x="0" y="7" width="3" height="5" rx="1"/><rect x="4" y="5" width="3" height="7" rx="1"/><rect x="8" y="3" width="3" height="9" rx="1"/><rect x="12" y="1" width="3" height="11" rx="1"/></svg>
+                <svg width="26" height="12" viewBox="0 0 26 12" fill="none"><rect x="1" y="1" width="21" height="10" rx="2.5" stroke="currentColor" opacity=".4"/><rect x="3" y="3" width="16" height="6" rx="1" fill="currentColor"/><rect x="23" y="4" width="1.5" height="4" rx=".75" fill="currentColor" opacity=".5"/></svg>
+              </span>
+            </div>
+            <div class="detail-content">
+              <div class="hero">
+                <div class="hero-placeholder">BACKDROP · w780</div>
+                <button class="hero-btn back" aria-label="Back"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>
+                <button class="hero-btn more" aria-label="More actions"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg></button>
+                <div class="hero-gradient"></div>
+                <div class="hero-content">
+                  <div class="detail-title">Severance</div>
+                  <div class="detail-meta">
+                    <span>2 seasons</span>
+                    <span class="dot">·</span>
+                    <span class="meta-status"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/></svg>Returning</span>
+                  </div>
+                </div>
+              </div>
+              <div class="continue-card">
+                <div class="continue-still">STILL</div>
+                <div class="continue-body">
+                  <div class="continue-kicker">Next up</div>
+                  <div class="continue-ep">S2 E3 · Who Is Alive?</div>
+                  <div class="continue-air">Aired Feb 7, 2025</div>
+                </div>
+                <button class="check-hit" aria-label="Mark watched"><span class="check"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-11"/></svg></span></button>
+              </div>
+              <div class="section-title">Seasons</div>
+              <div class="seasons">
+                <div class="accordion">
+                  <div class="accordion-header">
+                    <span class="season-name">Season 1</span>
+                    <span class="season-progress complete">9/9</span>
+                    <span class="season-check"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8.5 12.5l2.5 2.5 4.5-5"/></svg></span>
+                    <svg class="accordion-chevron" width="9" height="16" viewBox="0 0 9 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 1l6 7-6 7"/></svg>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Overlay: dimmed backdrop + centered destructive alert -->
+            <div class="scrim centered">
+              <div class="alert">
+                <div class="alert-body">
+                  <div class="alert-title">Remove “Severance”?</div>
+                  <div class="alert-msg">This deletes the series and all your watch progress. This can’t be undone.</div>
+                </div>
+                <div class="alert-actions">
+                  <button class="alert-btn">Cancel</button>
+                  <button class="alert-btn destructive">Remove</button>
+                </div>
+              </div>
+            </div>
+            <div class="home-indicator"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="caption-note">
+      Entry point is the <code>•••</code> button in the hero (top-right, mirrors Back). It opens a
+      contextual action sheet. Stop / Resume are reversible and apply immediately; Remove is
+      guarded by a destructive confirmation alert. See <code>README.md</code> for the component
+      mapping and per-status action matrix.
+    </div>
+  </body>
+</html>
