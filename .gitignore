@@ -38,3 +38,7 @@ coverage/
 data/
 *.csv
 tvtime-*.json
+.vercel
+.env*
+supabase/config.toml
+supabase/snippets/
