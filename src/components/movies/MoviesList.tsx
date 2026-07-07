@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { MovieCard } from '@/components/movies/MovieCard';
+import { MoviesHint } from '@/components/movies/MoviesHint';
 import type { UserMovie } from '@/types/movies';
 
 interface MoviesListProps {
@@ -50,7 +51,10 @@ export function MoviesList({ watchlist }: MoviesListProps) {
   return (
     <div className="pb-6">
       {watchlist.length > 0 ? (
-        <MovieSection title="Watchlist" movies={watchlist} />
+        <>
+          <MovieSection title="Watchlist" movies={watchlist} />
+          <MoviesHint variant="watchlist" />
+        </>
       ) : (
         <div className="flex flex-col items-center gap-1 px-10 pb-2 pt-7 text-center">
           <p className="text-[17px] font-semibold text-text-primary">Your watchlist is empty</p>

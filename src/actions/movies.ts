@@ -4,7 +4,12 @@ import { revalidatePath } from 'next/cache';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import { getMovieDetails, TmdbApiError } from '@/lib/tmdb/client';
-import type { AddMovieResult, MovieAddStatus, ToggleMovieResult } from '@/types/movies';
+import type {
+  AddMovieResult,
+  MovieAddStatus,
+  RemoveMovieResult,
+  ToggleMovieResult,
+} from '@/types/movies';
 
 /**
  * Adds a movie to the current user's list, either as watched (with
@@ -85,6 +90,44 @@ export async function addMovie(tmdbId: number, status: MovieAddStatus): Promise<
   }
 
   revalidatePath('/movies');
+  return { ok: true };
+}
+
+/**
+ * Removes a movie from the current user's list by deleting the `user_movies`
+ * row for `(user.id, tmdbId)`. Unlike series there is no watch progress to
+ * clean up — a movie is a single binary `watched` flag — so this is one delete.
+ * Deleting a row that isn't there is a harmless no-op, so re-removing a movie
+ * already gone reports success. RLS scopes the delete to the caller's own rows.
+ * Both `/movies` and `/movies/archive` are revalidated since the movie may be
+ * removed from either the watchlist grid or the watched archive.
+ */
+export async function removeMovie(tmdbId: number): Promise<RemoveMovieResult> {
+  if (!Number.isInteger(tmdbId) || tmdbId < 1) {
+    return { ok: false, error: 'Invalid movie id.' };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { ok: false, error: 'You must be signed in to remove a movie.' };
+  }
+
+  const { error } = await supabase
+    .from('user_movies')
+    .delete()
+    .eq('user_id', user.id)
+    .eq('tmdb_id', tmdbId);
+
+  if (error) {
+    return { ok: false, error: 'Could not remove the movie. Please try again.' };
+  }
+
+  revalidatePath('/movies');
+  revalidatePath('/movies/archive');
   return { ok: true };
 }
 

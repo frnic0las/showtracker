@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { MovieCard } from '@/components/movies/MovieCard';
+import { MoviesHint } from '@/components/movies/MoviesHint';
 import { CenteredState } from '@/components/ui/CenteredState';
 import { getUserMovies } from '@/lib/movies/queries';
 import { createClient } from '@/lib/supabase/server';
@@ -98,6 +99,7 @@ export default async function MoviesArchivePage() {
               <MovieCard key={movie.tmdbId} {...movie} />
             ))}
           </div>
+          <MoviesHint variant="watched" />
         </section>
       )}
     </div>
