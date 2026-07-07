@@ -7,7 +7,7 @@
  */
 
 import { createClient } from '@/lib/supabase/server';
-import type { UserMovie, UserMovies } from '@/types/movies';
+import { DEFAULT_MOVIE_SORT, type MovieSort, type UserMovie, type UserMovies } from '@/types/movies';
 
 interface UserMovieRow {
   tmdb_id: number;
@@ -23,14 +23,54 @@ interface MovieCacheRow {
   release_date: string | null;
 }
 
+interface SortableMovie {
+  movie: UserMovie;
+  /** The section's timeline value: `created_at` (watchlist) or `watched_at` (watched). */
+  sortKey: string;
+}
+
+/**
+ * Builds the comparator for a section from its active sort. The two timeline
+ * orders lean on `sortKey`; `title_asc` is case-insensitive; `year_desc` puts
+ * movies without a release year last. A leading "The " is intentionally not
+ * stripped for the alphabetical order — kept simple per the design note.
+ */
+function movieComparator(sort: MovieSort): (a: SortableMovie, b: SortableMovie) => number {
+  switch (sort) {
+    case 'added_asc':
+      return (a, b) => a.sortKey.localeCompare(b.sortKey);
+    case 'title_asc':
+      return (a, b) => a.movie.title.localeCompare(b.movie.title, undefined, { sensitivity: 'base' });
+    case 'year_desc':
+      return (a, b) => {
+        if (a.movie.year === b.movie.year) return 0;
+        if (a.movie.year === null) return 1;
+        if (b.movie.year === null) return -1;
+        return b.movie.year.localeCompare(a.movie.year);
+      };
+    case 'added_desc':
+    default:
+      return (a, b) => b.sortKey.localeCompare(a.sortKey);
+  }
+}
+
+/** Active sort for each section; both default to newest-first (legacy order). */
+interface MovieSortOptions {
+  watchlist?: MovieSort;
+  watched?: MovieSort;
+}
+
 /**
  * Returns the current user's movies, enriched with cached TMDB metadata and
- * split into `watched` (most recently watched first) and `watchlist` (most
- * recently added first). Movies whose cache row is missing are omitted rather
- * than rendered as blanks — `addMovie` always upserts the cache first, so this
- * only guards against inconsistent data.
+ * split into `watched` and `watchlist`. Each section is ordered by its own
+ * active sort (`sort`), both defaulting to newest-first. Movies whose cache row
+ * is missing are omitted rather than rendered as blanks — `addMovie` always
+ * upserts the cache first, so this only guards against inconsistent data.
  */
-export async function getUserMovies(userId: string): Promise<UserMovies> {
+export async function getUserMovies(
+  userId: string,
+  sort: MovieSortOptions = {},
+): Promise<UserMovies> {
   const supabase = await createClient();
 
   const { data: movieData, error: movieError } = await supabase
@@ -63,11 +103,6 @@ export async function getUserMovies(userId: string): Promise<UserMovies> {
 
   const cache = new Map((cacheData ?? []).map((row) => [row.tmdb_id, row]));
 
-  interface SortableMovie {
-    movie: UserMovie;
-    sortKey: string;
-  }
-
   const watched: SortableMovie[] = [];
   const watchlist: SortableMovie[] = [];
 
@@ -91,10 +126,8 @@ export async function getUserMovies(userId: string): Promise<UserMovies> {
     }
   }
 
-  // Both sections are ordered newest first.
-  const byNewest = (a: SortableMovie, b: SortableMovie) => b.sortKey.localeCompare(a.sortKey);
-  watched.sort(byNewest);
-  watchlist.sort(byNewest);
+  watched.sort(movieComparator(sort.watched ?? DEFAULT_MOVIE_SORT));
+  watchlist.sort(movieComparator(sort.watchlist ?? DEFAULT_MOVIE_SORT));
 
   return {
     watched: watched.map((entry) => entry.movie),

@@ -40,3 +40,21 @@ export interface UserMovies {
   /** Watchlist movies, most recently added first. */
   watchlist: UserMovie[];
 }
+
+/**
+ * How a movie section is ordered. Shared by both surfaces and carried in the
+ * `?sort=` query param. The two timeline keys resolve to each section's own
+ * date (`created_at` for the watchlist, `watched_at` for the watched archive),
+ * so one enum serves both. `added_desc` reproduces today's default order.
+ */
+export type MovieSort = 'added_desc' | 'added_asc' | 'title_asc' | 'year_desc';
+
+/** The default order for both sections — newest first, matching legacy behavior. */
+export const DEFAULT_MOVIE_SORT: MovieSort = 'added_desc';
+
+const MOVIE_SORTS: readonly MovieSort[] = ['added_desc', 'added_asc', 'title_asc', 'year_desc'];
+
+/** Narrows an untrusted `?sort=` value to a `MovieSort`, falling back to the default. */
+export function parseMovieSort(value: string | undefined): MovieSort {
+  return MOVIE_SORTS.includes(value as MovieSort) ? (value as MovieSort) : DEFAULT_MOVIE_SORT;
+}
