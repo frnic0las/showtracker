@@ -26,6 +26,8 @@ export interface NextEpisode {
 export interface SeriesWithProgress {
   tmdbId: number;
   status: 'watching' | 'stopped' | 'watchlist';
+  /** The series' cached TMDB lifecycle status (e.g. `Ended`, `Canceled`, `Returning Series`). */
+  tmdbStatus: string | null;
   title: string;
   posterPath: string | null;
   unwatchedCount: number;
