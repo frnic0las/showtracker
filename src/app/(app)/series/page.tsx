@@ -1,12 +1,23 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
+import { after } from 'next/server';
 import { SeriesSearch } from '@/components/series/SeriesSearch';
 import { SeriesTabs } from '@/components/series/SeriesTabs';
 import { ToWatchView } from '@/components/series/ToWatchView';
 import { UpcomingView } from '@/components/series/UpcomingView';
 import { localTodayIsoDate, TZ_COOKIE } from '@/lib/dates';
-import { getUpcomingEpisodes, getUserSeriesWithProgress } from '@/lib/series/queries';
+import {
+  getUpcomingEpisodes,
+  getUserSeriesWithProgress,
+  refreshStaleSeries,
+} from '@/lib/series/queries';
 import { createClient } from '@/lib/supabase/server';
+
+// The `after()` callback below refreshes stale series from TMDB sequentially,
+// and runs within this route's function budget — not the cron's. Raise the
+// ceiling to 60s (Hobby max) so a batch of stale series isn't cut off at the
+// 10s default mid-refresh.
+export const maxDuration = 60;
 
 export default async function SeriesPage() {
   const supabase = await createClient();
@@ -27,6 +38,10 @@ export default async function SeriesPage() {
   ]);
 
   const trackedIds = series.map((item) => item.tmdbId);
+
+  after(async () => {
+    await refreshStaleSeries();
+  });
 
   return (
     <div>
