@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { removeSeries, updateSeriesStatus } from '@/actions/series';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 
 type UserStatus = 'watching' | 'stopped' | 'watchlist';
 
@@ -99,11 +100,12 @@ function statusCaption(status: UserStatus, completed: boolean, nextLabel?: strin
 
 /**
  * The hero's `•••` more button and its contextual action sheet, plus the
- * destructive Remove confirmation alert — one client island driving every
- * status transition for the series detail page. Stop / Resume / Start apply
- * immediately via `updateSeriesStatus`; Remove is guarded by a centered alert
- * before `removeSeries`, then navigates back to the series list. On any error
- * the overlay stays open and surfaces the message — no optimistic updates.
+ * destructive Remove confirmation — one client island driving every status
+ * transition for the series detail page. Stop / Resume / Start apply
+ * immediately via `updateSeriesStatus`; Remove is guarded by the shared
+ * `ConfirmDialog` before `removeSeries`, then navigates back to the series
+ * list. On any error the overlay stays open and surfaces the message — no
+ * optimistic updates.
  */
 export function SeriesActionSheet({
   tmdbSeriesId,
@@ -114,10 +116,9 @@ export function SeriesActionSheet({
 }: SeriesActionSheetProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [mode, setMode] = useState<'sheet' | 'confirm'>('sheet');
   const [mounted, setMounted] = useState(false);
   const [shown, setShown] = useState(false);
-  const [confirmShown, setConfirmShown] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -136,17 +137,6 @@ export function SeriesActionSheet({
     return () => clearTimeout(timer);
   }, [open]);
 
-  // The confirm alert swaps in while the overlay is already open (`shown` is
-  // true), so it needs its own enter trigger: flip `confirmShown` on the next
-  // frame after entering confirm mode to play the fade + scale-in.
-  useEffect(() => {
-    if (open && mode === 'confirm') {
-      const raf = requestAnimationFrame(() => setConfirmShown(true));
-      return () => cancelAnimationFrame(raf);
-    }
-    setConfirmShown(false);
-  }, [open, mode]);
-
   // Lock body scroll and wire Escape-to-close while the overlay is open.
   useEffect(() => {
     if (!open) return;
@@ -163,13 +153,24 @@ export function SeriesActionSheet({
 
   function openSheet() {
     setError(null);
-    setMode('sheet');
     setOpen(true);
   }
 
   function close() {
     if (isPending) return;
     setOpen(false);
+  }
+
+  function openRemoveConfirm() {
+    setError(null);
+    setOpen(false);
+    setConfirmOpen(true);
+  }
+
+  function closeRemoveConfirm() {
+    if (isPending) return;
+    setError(null);
+    setConfirmOpen(false);
   }
 
   function handlePrimary(target: UserStatus) {
@@ -192,7 +193,7 @@ export function SeriesActionSheet({
         setError(result.error);
         return;
       }
-      setOpen(false);
+      setConfirmOpen(false);
       router.push('/series');
     });
   }
@@ -213,9 +214,9 @@ export function SeriesActionSheet({
 
       {mounted ? (
         <div
-          className={`fixed inset-0 z-50 flex flex-col items-center bg-black/40 transition-opacity duration-300 ${
-            mode === 'confirm' ? 'justify-center' : 'justify-end'
-          } ${shown ? 'opacity-100' : 'opacity-0'}`}
+          className={`fixed inset-0 z-50 flex flex-col items-center justify-end bg-black/40 transition-opacity duration-300 ${
+            shown ? 'opacity-100' : 'opacity-0'
+          }`}
         >
           <button
             type="button"
@@ -225,103 +226,74 @@ export function SeriesActionSheet({
             className="absolute inset-0 h-full w-full cursor-default"
           />
 
-          {mode === 'sheet' ? (
-            <div
-              role="menu"
-              aria-label={`Actions for ${title}`}
-              className={`relative w-full max-w-[430px] px-2 pb-[calc(8px+env(safe-area-inset-bottom))] transition-transform duration-300 ease-out ${
-                shown ? 'translate-y-0' : 'translate-y-full'
-              }`}
-            >
-              <div className="overflow-hidden rounded-lg bg-bg-elevated/95 backdrop-blur-xl">
-                <div className="border-b border-separator px-4 pb-3 pt-3.5 text-center text-[13px] leading-snug text-text-secondary">
-                  <span className="font-semibold text-text-primary">{title}</span>
-                  <br />
-                  {statusCaption(status, completed, nextLabel)}
-                </div>
+          <div
+            role="menu"
+            aria-label={`Actions for ${title}`}
+            className={`relative w-full max-w-[430px] px-2 pb-[calc(8px+env(safe-area-inset-bottom))] transition-transform duration-300 ease-out ${
+              shown ? 'translate-y-0' : 'translate-y-full'
+            }`}
+          >
+            <div className="overflow-hidden rounded-lg bg-bg-elevated/95 backdrop-blur-xl">
+              <div className="border-b border-separator px-4 pb-3 pt-3.5 text-center text-[13px] leading-snug text-text-secondary">
+                <span className="font-semibold text-text-primary">{title}</span>
+                <br />
+                {statusCaption(status, completed, nextLabel)}
+              </div>
 
-                {primary ? (
-                  <button
-                    type="button"
-                    role="menuitem"
-                    onClick={() => handlePrimary(primary.target)}
-                    disabled={isPending}
-                    className="flex min-h-[57px] w-full items-center justify-center gap-2 text-[20px] font-semibold text-accent disabled:opacity-50"
-                  >
-                    {primary.icon === 'stop' ? <StopIcon /> : <PlayIcon />}
-                    {primary.label}
-                  </button>
-                ) : null}
-
+              {primary ? (
                 <button
                   type="button"
                   role="menuitem"
-                  onClick={() => setMode('confirm')}
+                  onClick={() => handlePrimary(primary.target)}
                   disabled={isPending}
-                  className="flex min-h-[57px] w-full items-center justify-center gap-2 border-t border-separator text-[20px] text-accent-red disabled:opacity-50"
+                  className="flex min-h-[57px] w-full items-center justify-center gap-2 text-[20px] font-semibold text-accent disabled:opacity-50"
                 >
-                  <TrashIcon />
-                  Remove from library
+                  {primary.icon === 'stop' ? <StopIcon /> : <PlayIcon />}
+                  {primary.label}
                 </button>
-
-                {error ? (
-                  <p className="border-t border-separator px-4 py-3 text-center text-[13px] text-accent-red">
-                    {error}
-                  </p>
-                ) : null}
-              </div>
+              ) : null}
 
               <button
                 type="button"
-                onClick={close}
+                role="menuitem"
+                onClick={openRemoveConfirm}
                 disabled={isPending}
-                className="mt-2 min-h-[57px] w-full rounded-lg bg-bg-elevated/95 text-[20px] font-semibold text-accent backdrop-blur-xl disabled:opacity-50"
+                className="flex min-h-[57px] w-full items-center justify-center gap-2 border-t border-separator text-[20px] text-accent-red disabled:opacity-50"
               >
-                Cancel
+                <TrashIcon />
+                Remove from library
               </button>
+
+              {error ? (
+                <p className="border-t border-separator px-4 py-3 text-center text-[13px] text-accent-red">
+                  {error}
+                </p>
+              ) : null}
             </div>
-          ) : (
-            <div
-              role="alertdialog"
-              aria-modal="true"
-              aria-label={`Remove ${title}?`}
-              className={`relative w-[270px] overflow-hidden rounded-[14px] bg-bg-elevated/95 text-center backdrop-blur-xl transition duration-200 ease-out ${
-                confirmShown ? 'scale-100 opacity-100' : 'scale-95 opacity-0'
-              }`}
+
+            <button
+              type="button"
+              onClick={close}
+              disabled={isPending}
+              className="mt-2 min-h-[57px] w-full rounded-lg bg-bg-elevated/95 text-[20px] font-semibold text-accent backdrop-blur-xl disabled:opacity-50"
             >
-              <div className="px-4 pb-[18px] pt-5">
-                <p className="text-[17px] font-semibold text-text-primary">
-                  Remove &ldquo;{title}&rdquo;?
-                </p>
-                <p className="mt-1 text-[13px] leading-snug text-text-primary">
-                  This deletes the series and all your watch progress. This can&rsquo;t be undone.
-                </p>
-                {error ? (
-                  <p className="mt-2 text-[13px] leading-snug text-accent-red">{error}</p>
-                ) : null}
-              </div>
-              <div className="flex border-t border-separator">
-                <button
-                  type="button"
-                  onClick={close}
-                  disabled={isPending}
-                  className="min-h-[44px] flex-1 text-[17px] text-accent disabled:opacity-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={handleRemove}
-                  disabled={isPending}
-                  className="min-h-[44px] flex-1 border-l border-separator text-[17px] font-semibold text-accent-red disabled:opacity-50"
-                >
-                  Remove
-                </button>
-              </div>
-            </div>
-          )}
+              Cancel
+            </button>
+          </div>
         </div>
       ) : null}
+
+      <ConfirmDialog
+        open={confirmOpen}
+        title={`Remove “${title}”?`}
+        message="This deletes the series and all your watch progress. This can’t be undone."
+        confirmLabel="Remove"
+        destructive
+        error={error}
+        pending={isPending}
+        onConfirm={handleRemove}
+        onCancel={closeRemoveConfirm}
+      />
     </>
   );
 }

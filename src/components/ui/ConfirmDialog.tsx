@@ -14,13 +14,21 @@ interface ConfirmDialogProps {
   onCancel: () => void;
   /** Disables both buttons and dims the card while an action runs. */
   pending?: boolean;
+  /** Renders the confirm button in `text-accent-red` for irreversible actions. */
+  destructive?: boolean;
+  /** Inline error shown below the message when a previous confirm attempt failed. */
+  error?: string | null;
 }
 
 /**
  * Centered iOS-style `alertdialog`, extracted from the confirm mode of
  * `SeriesActionSheet`: a 270px card that fades and scales in over a black/40
  * backdrop, locks body scroll while open, and cancels on Escape. Confirm is
- * non-destructive here — rendered in `text-accent` rather than red.
+ * `text-accent` by default, or `text-accent-red` when `destructive` is set for
+ * irreversible actions. An optional `error` renders inline below the message.
+ * Focus moves to the Cancel button on open, is trapped within the dialog's
+ * buttons while open, and is restored to the previously focused element on
+ * close.
  */
 export function ConfirmDialog({
   open,
@@ -31,12 +39,18 @@ export function ConfirmDialog({
   onConfirm,
   onCancel,
   pending = false,
+  destructive = false,
+  error = null,
 }: ConfirmDialogProps) {
   const [mounted, setMounted] = useState(false);
   const [shown, setShown] = useState(false);
 
   const onCancelRef = useRef(onCancel);
   onCancelRef.current = onCancel;
+
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const cancelButtonRef = useRef<HTMLButtonElement>(null);
+  const previouslyFocusedRef = useRef<HTMLElement | null>(null);
 
   // Drive the enter/exit transition: mount immediately on open then flip
   // `shown` on the next frame; on close, animate out before unmounting.
@@ -51,11 +65,44 @@ export function ConfirmDialog({
     return () => clearTimeout(timer);
   }, [open]);
 
-  // Lock body scroll and wire Escape-to-cancel while the dialog is open.
+  // Capture the previously focused element on open and move focus into the
+  // dialog (the Cancel button) once it exists; restore focus on close.
+  useEffect(() => {
+    if (open) {
+      previouslyFocusedRef.current = document.activeElement as HTMLElement | null;
+      const raf = requestAnimationFrame(() => cancelButtonRef.current?.focus());
+      return () => cancelAnimationFrame(raf);
+    }
+    previouslyFocusedRef.current?.focus?.();
+    previouslyFocusedRef.current = null;
+  }, [open]);
+
+  // Lock body scroll, wire Escape-to-cancel, and trap Tab within the dialog's
+  // focusable buttons while it is open.
   useEffect(() => {
     if (!open) return;
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onCancelRef.current();
+      if (event.key === 'Escape') {
+        onCancelRef.current();
+        return;
+      }
+      if (event.key !== 'Tab') return;
+      const focusable = dialogRef.current?.querySelectorAll<HTMLButtonElement>(
+        'button:not([disabled])',
+      );
+      if (!focusable || focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const active = document.activeElement;
+      if (event.shiftKey) {
+        if (active === first || !dialogRef.current?.contains(active)) {
+          event.preventDefault();
+          last.focus();
+        }
+      } else if (active === last || !dialogRef.current?.contains(active)) {
+        event.preventDefault();
+        first.focus();
+      }
     };
     document.addEventListener('keydown', onKey);
     document.body.style.overflow = 'hidden';
@@ -82,6 +129,7 @@ export function ConfirmDialog({
       />
 
       <div
+        ref={dialogRef}
         role="alertdialog"
         aria-modal="true"
         aria-label={title}
@@ -92,9 +140,11 @@ export function ConfirmDialog({
         <div className="px-4 pb-[18px] pt-5">
           <p className="text-[17px] font-semibold text-text-primary">{title}</p>
           <p className="mt-1 text-[13px] leading-snug text-text-primary">{message}</p>
+          {error ? <p className="mt-2 text-[13px] leading-snug text-accent-red">{error}</p> : null}
         </div>
         <div className="flex border-t border-separator">
           <button
+            ref={cancelButtonRef}
             type="button"
             onClick={onCancel}
             disabled={pending}
@@ -106,7 +156,9 @@ export function ConfirmDialog({
             type="button"
             onClick={onConfirm}
             disabled={pending}
-            className="min-h-[44px] flex-1 border-l border-separator text-[17px] font-semibold text-accent disabled:opacity-50"
+            className={`min-h-[44px] flex-1 border-l border-separator text-[17px] font-semibold disabled:opacity-50 ${
+              destructive ? 'text-accent-red' : 'text-accent'
+            }`}
           >
             {confirmLabel}
           </button>
