@@ -1,11 +1,16 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
+import { after } from 'next/server';
 import { SeriesSearch } from '@/components/series/SeriesSearch';
 import { SeriesTabs } from '@/components/series/SeriesTabs';
 import { ToWatchView } from '@/components/series/ToWatchView';
 import { UpcomingView } from '@/components/series/UpcomingView';
 import { localTodayIsoDate, TZ_COOKIE } from '@/lib/dates';
-import { getUpcomingEpisodes, getUserSeriesWithProgress } from '@/lib/series/queries';
+import {
+  getUpcomingEpisodes,
+  getUserSeriesWithProgress,
+  refreshStaleSeries,
+} from '@/lib/series/queries';
 import { createClient } from '@/lib/supabase/server';
 
 export default async function SeriesPage() {
@@ -27,6 +32,10 @@ export default async function SeriesPage() {
   ]);
 
   const trackedIds = series.map((item) => item.tmdbId);
+
+  after(async () => {
+    await refreshStaleSeries();
+  });
 
   return (
     <div>

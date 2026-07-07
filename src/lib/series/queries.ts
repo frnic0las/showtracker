@@ -23,18 +23,6 @@ import type {
 } from '@/types/series';
 
 const HOUR_MS = 60 * 60 * 1000;
-const DAY_MS = 24 * HOUR_MS;
-
-/**
- * Cache freshness window keyed on the series' TMDB status, per
- * docs/DATABASE.md: an actively-airing show is refreshed far more often than
- * one that has finished, so ended series don't trigger needless TMDB calls.
- */
-function staleMsForStatus(status: string | null): number {
-  if (status === 'Returning Series') return 6 * HOUR_MS;
-  if (status === 'Ended' || status === 'Canceled') return 7 * DAY_MS;
-  return DAY_MS;
-}
 
 interface SeriesProgressRpcRow {
   tmdb_id: number;
@@ -318,13 +306,69 @@ async function refreshSeriesCache(tmdbId: number): Promise<boolean> {
   return true;
 }
 
+interface StaleSeriesRow {
+  tmdb_id: number;
+  title: string;
+}
+
+/**
+ * Refreshes `series_cache` for every currently-airing ("Returning Series")
+ * series whose cache hasn't been refreshed in the last 12 hours. Intended to
+ * be run from the daily cron job and the background `after()` refresh on app
+ * launch, replacing the old lazy/staleness refresh in
+ * `getSeriesDetailWithProgress`. Series are refreshed sequentially, not in
+ * parallel, to respect TMDB rate limits; one failing series is logged and
+ * skipped rather than aborting the whole batch.
+ */
+export async function refreshStaleSeries(): Promise<{
+  refreshed: number;
+  failed: number;
+  skipped: number;
+}> {
+  const admin = createAdminClient();
+  const cutoff = new Date(Date.now() - 12 * HOUR_MS).toISOString();
+
+  const { data: staleSeries, error: staleSeriesError } = await admin
+    .from('series_cache')
+    .select('tmdb_id, title')
+    .eq('status', 'Returning Series')
+    .lt('last_fetched_at', cutoff)
+    .overrideTypes<StaleSeriesRow[], { merge: false }>();
+
+  if (staleSeriesError) {
+    throw new Error(`Could not load stale series: ${staleSeriesError.message}`);
+  }
+
+  let refreshed = 0;
+  let failed = 0;
+  let skipped = 0;
+
+  for (const row of staleSeries ?? []) {
+    try {
+      const found = await refreshSeriesCache(row.tmdb_id);
+      if (found) {
+        refreshed += 1;
+        console.log(`Refreshed cache for series "${row.title}" (${row.tmdb_id}).`);
+      } else {
+        skipped += 1;
+        console.warn(`Skipped series "${row.title}" (${row.tmdb_id}): no longer on TMDB.`);
+      }
+    } catch (error) {
+      failed += 1;
+      console.warn(`Failed to refresh series "${row.title}" (${row.tmdb_id}):`, error);
+    }
+  }
+
+  return { refreshed, failed, skipped };
+}
+
 /**
  * Returns the full detail view for one series: cached metadata, the current
  * user's per-season and per-episode watch progress, and their tracking status
- * (`null` when not tracked). Refreshes the cache from TMDB first when it is
- * missing, has no episodes cached yet, or is older than the status-based
- * freshness window (see `staleMsForStatus`). Returns `null` only when the
- * series does not exist on TMDB.
+ * (`null` when not tracked). Refreshes the cache from TMDB first only when
+ * it's missing or has no episodes cached yet — ongoing freshness is handled
+ * by the daily cron job and the background `after()` refresh instead. Returns
+ * `null` only when the series does not exist on TMDB.
  */
 export async function getSeriesDetailWithProgress(
   userId: string,
@@ -358,13 +402,9 @@ export async function getSeriesDetailWithProgress(
     throw new Error(`Could not check cached episodes: ${episodeCountError.message}`);
   }
 
-  const isStale =
-    !seriesCache ||
-    !episodeCount ||
-    Date.now() - new Date(seriesCache.last_fetched_at).getTime() >
-      staleMsForStatus(seriesCache.status);
+  const needsRefresh = !seriesCache || !episodeCount;
 
-  if (isStale) {
+  if (needsRefresh) {
     const found = await refreshSeriesCache(tmdbId);
     if (!found) {
       return null;
