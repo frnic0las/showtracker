@@ -68,3 +68,8 @@ export function formatSeriesStatus(
 export function formatSeasonCount(count: number): string {
   return `${count} season${count === 1 ? '' : 's'}`;
 }
+
+/** Short episode label for captions and banners, e.g. `S2 E3`. */
+export function formatEpisodeShort(seasonNumber: number, episodeNumber: number): string {
+  return `S${seasonNumber} E${episodeNumber}`;
+}

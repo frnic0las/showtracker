@@ -77,6 +77,12 @@ export interface SeriesDetail {
   episodes: EpisodeWithStatus[];
 }
 
+/** Result of the `updateSeriesStatus` server action. */
+export type UpdateSeriesStatusResult = { ok: true } | { ok: false; error: string };
+
+/** Result of the `removeSeries` server action. */
+export type RemoveSeriesResult = { ok: true } | { ok: false; error: string };
+
 /** Result of the `markSeasonWatched` server action. */
 export type MarkSeasonWatchedResult = { ok: true; marked: number } | { ok: false; error: string };
 

@@ -8,9 +8,13 @@ import { getSeriesDetails, TmdbApiError } from '@/lib/tmdb/client';
 import type {
   AddSeriesResult,
   MarkSeasonWatchedResult,
+  RemoveSeriesResult,
   ToggleEpisodeWatchedResult,
   UnmarkSeasonWatchedResult,
+  UpdateSeriesStatusResult,
 } from '@/types/series';
+
+type SeriesStatus = 'watching' | 'stopped' | 'watchlist';
 
 /**
  * Resolves the current user and asserts they track `tmdbSeriesId`, returning a
@@ -306,4 +310,88 @@ export async function unmarkSeasonWatched(
   revalidatePath('/series');
 
   return { ok: true, unmarked: data?.length ?? 0 };
+}
+
+/**
+ * Changes the current user's tracking status for a series between `watching`,
+ * `stopped`, and `watchlist`. Watch progress is untouched — stopping a series
+ * only pauses it. RLS scopes the update to the caller's own row, and the
+ * tracking guard keeps the action from being a no-op on a series the user
+ * doesn't follow.
+ */
+export async function updateSeriesStatus(
+  tmdbSeriesId: number,
+  status: SeriesStatus,
+): Promise<UpdateSeriesStatusResult> {
+  if (!Number.isInteger(tmdbSeriesId) || tmdbSeriesId < 1) {
+    return { ok: false, error: 'Invalid series.' };
+  }
+  if (status !== 'watching' && status !== 'stopped' && status !== 'watchlist') {
+    return { ok: false, error: 'Invalid status.' };
+  }
+
+  const guard = await requireTrackedSeries(tmdbSeriesId);
+  if (!guard.ok) {
+    return guard;
+  }
+  const { user, supabase } = guard;
+
+  const { error } = await supabase
+    .from('user_series')
+    .update({ status, updated_at: new Date().toISOString() })
+    .eq('user_id', user.id)
+    .eq('tmdb_id', tmdbSeriesId);
+
+  if (error) {
+    return { ok: false, error: 'Could not update the series status. Please try again.' };
+  }
+
+  revalidatePath(`/series/${tmdbSeriesId}`);
+  revalidatePath('/series');
+
+  return { ok: true };
+}
+
+/**
+ * Removes a series from the current user's library and deletes all of their
+ * watch progress for it. `user_episodes` has no foreign key to `user_series`,
+ * so the episode rows are deleted explicitly first: if the series-row delete
+ * failed afterwards the user would simply keep tracking a reset series, whereas
+ * the reverse order could leave orphaned episode rows behind. RLS scopes both
+ * deletes to the caller's own rows.
+ */
+export async function removeSeries(tmdbSeriesId: number): Promise<RemoveSeriesResult> {
+  if (!Number.isInteger(tmdbSeriesId) || tmdbSeriesId < 1) {
+    return { ok: false, error: 'Invalid series.' };
+  }
+
+  const guard = await requireTrackedSeries(tmdbSeriesId);
+  if (!guard.ok) {
+    return guard;
+  }
+  const { user, supabase } = guard;
+
+  const { error: episodesError } = await supabase
+    .from('user_episodes')
+    .delete()
+    .eq('user_id', user.id)
+    .eq('tmdb_series_id', tmdbSeriesId);
+
+  if (episodesError) {
+    return { ok: false, error: 'Could not remove your watch progress. Please try again.' };
+  }
+
+  const { error: seriesError } = await supabase
+    .from('user_series')
+    .delete()
+    .eq('user_id', user.id)
+    .eq('tmdb_id', tmdbSeriesId);
+
+  if (seriesError) {
+    return { ok: false, error: 'Could not remove the series. Please try again.' };
+  }
+
+  revalidatePath('/series');
+
+  return { ok: true };
 }
