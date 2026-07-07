@@ -2,9 +2,11 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { MovieCard } from '@/components/movies/MovieCard';
 import { MoviesHint } from '@/components/movies/MoviesHint';
+import { MovieSortMenu } from '@/components/movies/MovieSortMenu';
 import { CenteredState } from '@/components/ui/CenteredState';
 import { getUserMovies } from '@/lib/movies/queries';
 import { createClient } from '@/lib/supabase/server';
+import { parseMovieSort } from '@/types/movies';
 
 function ChevronLeftIcon() {
   return (
@@ -55,7 +57,11 @@ function MoviesIcon() {
  * interactivity is `MovieCard`'s watched toggle (already a client component)
  * and `Link` navigation.
  */
-export default async function MoviesArchivePage() {
+export default async function MoviesArchivePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ sort?: string }>;
+}) {
   const supabase = await createClient();
   const {
     data: { user },
@@ -65,7 +71,8 @@ export default async function MoviesArchivePage() {
     redirect('/login');
   }
 
-  const { watched } = await getUserMovies(user.id);
+  const sort = parseMovieSort((await searchParams).sort, 'watched');
+  const { watched } = await getUserMovies(user.id, { watched: sort });
 
   return (
     <div>
@@ -88,11 +95,14 @@ export default async function MoviesArchivePage() {
         />
       ) : (
         <section>
-          <div className="flex items-baseline gap-2 px-4 pt-5 pb-2">
-            <h2 className="text-[20px] font-semibold tracking-tight text-text-primary">Watched</h2>
-            <span className="text-[15px] font-semibold text-text-secondary tabular-nums">
-              · {watched.length}
-            </span>
+          <div className="flex items-center justify-between px-4 pt-5 pb-2">
+            <h2 className="flex items-baseline gap-2 text-[20px] font-semibold tracking-tight text-text-primary">
+              Watched
+              <span className="text-[15px] font-semibold text-text-secondary tabular-nums">
+                · {watched.length}
+              </span>
+            </h2>
+            <MovieSortMenu section="watched" active={sort} count={watched.length} />
           </div>
           <div className="grid grid-cols-3 gap-x-3 gap-y-4 px-4">
             {watched.map((movie) => (

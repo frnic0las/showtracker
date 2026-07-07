@@ -4,6 +4,7 @@ import { MoviesSearch } from '@/components/movies/MoviesSearch';
 import { CenteredState } from '@/components/ui/CenteredState';
 import { getUserMovies } from '@/lib/movies/queries';
 import { createClient } from '@/lib/supabase/server';
+import { parseMovieSort } from '@/types/movies';
 
 function MoviesIcon() {
   return (
@@ -26,7 +27,11 @@ function MoviesIcon() {
   );
 }
 
-export default async function MoviesPage() {
+export default async function MoviesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ sort?: string }>;
+}) {
   const supabase = await createClient();
   const {
     data: { user },
@@ -36,7 +41,8 @@ export default async function MoviesPage() {
     redirect('/login');
   }
 
-  const { watched, watchlist } = await getUserMovies(user.id);
+  const sort = parseMovieSort((await searchParams).sort);
+  const { watched, watchlist } = await getUserMovies(user.id, { watchlist: sort });
   const movieIds = [...watched, ...watchlist].map((movie) => movie.tmdbId);
 
   return (
@@ -55,7 +61,7 @@ export default async function MoviesPage() {
           <MoviesSearch addedIds={movieIds} variant="cta" />
         </CenteredState>
       ) : (
-        <MoviesList watchlist={watchlist} />
+        <MoviesList watchlist={watchlist} sort={sort} />
       )}
     </div>
   );

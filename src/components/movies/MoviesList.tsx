@@ -1,18 +1,23 @@
 import Link from 'next/link';
 import { MovieCard } from '@/components/movies/MovieCard';
 import { MoviesHint } from '@/components/movies/MoviesHint';
-import type { UserMovie } from '@/types/movies';
+import { MovieSortMenu } from '@/components/movies/MovieSortMenu';
+import type { MovieSort, UserMovie } from '@/types/movies';
 
 interface MoviesListProps {
   watchlist: UserMovie[];
+  sort: MovieSort;
 }
 
-function MovieSection({ title, movies }: { title: string; movies: UserMovie[] }) {
+function MovieSection({ title, movies, sort }: { title: string; movies: UserMovie[]; sort: MovieSort }) {
   return (
     <section>
-      <h2 className="px-4 pt-4 pb-2 text-[20px] font-semibold tracking-tight text-text-primary">
-        {title} <span className="text-text-secondary">· {movies.length}</span>
-      </h2>
+      <div className="flex items-center justify-between px-4 pt-4 pb-2">
+        <h2 className="flex items-baseline gap-2 text-[20px] font-semibold tracking-tight text-text-primary">
+          {title} <span className="text-text-secondary">· {movies.length}</span>
+        </h2>
+        <MovieSortMenu section="watchlist" active={sort} count={movies.length} />
+      </div>
       <div className="grid grid-cols-3 gap-x-3 gap-y-4 px-4">
         {movies.map((movie) => (
           <MovieCard key={movie.tmdbId} {...movie} />
@@ -47,12 +52,12 @@ function ChevronRightIcon({ className }: { className?: string }) {
  * which case a compact inline message takes its place; the page renders the
  * full-page empty state instead when the user has no movies at all.
  */
-export function MoviesList({ watchlist }: MoviesListProps) {
+export function MoviesList({ watchlist, sort }: MoviesListProps) {
   return (
     <div className="pb-6">
       {watchlist.length > 0 ? (
         <>
-          <MovieSection title="Watchlist" movies={watchlist} />
+          <MovieSection title="Watchlist" movies={watchlist} sort={sort} />
           <MoviesHint variant="watchlist" />
         </>
       ) : (
