@@ -47,3 +47,18 @@ export function localTodayIsoDate(timeZone?: string): string {
 export function daysUntil(dateStr: string, today: string = todayIsoDate()): number {
   return Math.round((parseUtcDate(dateStr) - parseUtcDate(today)) / DAY_MS);
 }
+
+/**
+ * Whether `airDate` is strictly after the browser's local today, resolved via
+ * `Intl.DateTimeFormat().resolvedOptions().timeZone`. Meant to be called at
+ * click time inside an event handler — never during render — so the check
+ * reflects the viewer's real clock without risking an SSR/hydration mismatch.
+ * Returns `false` when `airDate` is `null` (unknown dates never block).
+ */
+export function isFutureAirDate(airDate: string | null): boolean {
+  if (!airDate) {
+    return false;
+  }
+  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  return daysUntil(airDate, localTodayIsoDate(timeZone)) > 0;
+}

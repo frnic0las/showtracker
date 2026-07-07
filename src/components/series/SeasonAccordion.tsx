@@ -4,6 +4,8 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { markSeasonWatched, unmarkSeasonWatched } from '@/actions/series';
 import { EpisodeRow } from '@/components/series/EpisodeRow';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { isFutureAirDate } from '@/lib/dates';
 import type { EpisodeWithStatus } from '@/types/series';
 
 interface SeasonAccordionProps {
@@ -71,10 +73,11 @@ export function SeasonAccordion({
 }: SeasonAccordionProps) {
   const router = useRouter();
   const [open, setOpen] = useState(defaultOpen);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const complete = totalCount > 0 && watchedCount === totalCount;
 
-  function handleSeasonToggle() {
+  function runSeasonToggle() {
     startTransition(async () => {
       const result = complete
         ? await unmarkSeasonWatched(tmdbSeriesId, seasonNumber)
@@ -83,6 +86,22 @@ export function SeasonAccordion({
         router.refresh();
       }
     });
+  }
+
+  function handleSeasonToggle() {
+    if (
+      !complete &&
+      episodes.some((episode) => !episode.watched && isFutureAirDate(episode.airDate))
+    ) {
+      setConfirmOpen(true);
+      return;
+    }
+    runSeasonToggle();
+  }
+
+  function handleConfirm() {
+    setConfirmOpen(false);
+    runSeasonToggle();
   }
 
   return (
@@ -132,6 +151,16 @@ export function SeasonAccordion({
           </button>
         </div>
       ) : null}
+
+      <ConfirmDialog
+        open={confirmOpen}
+        title="Not all aired yet"
+        message="This season has episodes that haven't aired yet. Mark the whole season as watched?"
+        confirmLabel="Mark season"
+        onConfirm={handleConfirm}
+        onCancel={() => setConfirmOpen(false)}
+        pending={isPending}
+      />
     </div>
   );
 }
