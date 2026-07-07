@@ -2,6 +2,8 @@ import { notFound, redirect } from 'next/navigation';
 import { ContinueWatchingCard } from '@/components/series/ContinueWatchingCard';
 import { SeasonAccordion } from '@/components/series/SeasonAccordion';
 import { SeriesHero } from '@/components/series/SeriesHero';
+import { StoppedBanner } from '@/components/series/StoppedBanner';
+import { formatEpisodeShort } from '@/lib/series/format';
 import { getSeriesDetailWithProgress } from '@/lib/series/queries';
 import { createClient } from '@/lib/supabase/server';
 import type { EpisodeWithStatus } from '@/types/series';
@@ -61,6 +63,10 @@ export default async function SeriesDetailPage({
   const watchedEpisodes = detail.episodes.filter((episode) => episode.watched).length;
   const nextEpisode = detail.episodes.find((episode) => !episode.watched) ?? null;
   const completed = totalEpisodes > 0 && watchedEpisodes === totalEpisodes;
+  const stopped = detail.userStatus === 'stopped';
+  const nextLabel = nextEpisode
+    ? formatEpisodeShort(nextEpisode.seasonNumber, nextEpisode.episodeNumber)
+    : undefined;
 
   // Open the season the user is currently on (or the last season once finished)
   // so the next episode is visible without a tap.
@@ -77,13 +83,19 @@ export default async function SeriesDetailPage({
   return (
     <div>
       <SeriesHero
+        tmdbSeriesId={detail.tmdbId}
         title={detail.title}
         backdropPath={detail.backdropPath}
         status={detail.status}
         seasonCount={detail.seasons.length}
+        userStatus={detail.userStatus}
+        completed={completed}
+        nextLabel={nextLabel}
       />
 
-      {completed ? (
+      {stopped ? (
+        <StoppedBanner tmdbSeriesId={detail.tmdbId} pausedLabel={nextLabel ?? null} />
+      ) : completed ? (
         <div className="flex flex-col items-center gap-2 px-10 pt-5 pb-1 text-center">
           <span className="text-accent-green">
             <FinishedIcon />
