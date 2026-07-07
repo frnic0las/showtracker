@@ -11,6 +11,8 @@
 -- so the archive can compute "completed" from the single RPC result without a
 -- second round-trip. Everything else is unchanged from migration 006.
 
+drop function if exists get_user_series_with_progress(uuid);
+
 create or replace function get_user_series_with_progress(p_user_id uuid)
 returns table (
   tmdb_id integer,
