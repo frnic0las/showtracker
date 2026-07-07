@@ -55,7 +55,7 @@ export default async function MoviesPage() {
           <MoviesSearch addedIds={movieIds} variant="cta" />
         </CenteredState>
       ) : (
-        <MoviesList watched={watched} watchlist={watchlist} />
+        <MoviesList watchlist={watchlist} />
       )}
     </div>
   );
