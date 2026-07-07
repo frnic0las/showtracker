@@ -13,6 +13,12 @@ import {
 } from '@/lib/series/queries';
 import { createClient } from '@/lib/supabase/server';
 
+// The `after()` callback below refreshes stale series from TMDB sequentially,
+// and runs within this route's function budget — not the cron's. Raise the
+// ceiling to 60s (Hobby max) so a batch of stale series isn't cut off at the
+// 10s default mid-refresh.
+export const maxDuration = 60;
+
 export default async function SeriesPage() {
   const supabase = await createClient();
   const {
