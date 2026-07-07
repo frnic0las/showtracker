@@ -39,6 +39,7 @@ function staleMsForStatus(status: string | null): number {
 interface SeriesProgressRpcRow {
   tmdb_id: number;
   status: 'watching' | 'stopped' | 'watchlist';
+  series_status: string | null;
   title: string;
   poster_path: string | null;
   total_episodes: number;
@@ -86,6 +87,7 @@ export async function getUserSeriesWithProgress(userId: string): Promise<SeriesW
     return {
       tmdbId: row.tmdb_id,
       status: row.status,
+      tmdbStatus: row.series_status,
       title: row.title,
       posterPath: row.poster_path,
       unwatchedCount: row.unwatched_count,
