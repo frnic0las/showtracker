@@ -21,6 +21,9 @@ export type AddMovieResult = { ok: true } | { ok: false; error: string };
 /** Result of the `toggleMovieWatched` server action. */
 export type ToggleMovieResult = { ok: true } | { ok: false; error: string };
 
+/** Result of the `removeMovie` server action. */
+export type RemoveMovieResult = { ok: true } | { ok: false; error: string };
+
 /** A movie on the current user's list, enriched with cached TMDB metadata. */
 export interface UserMovie {
   tmdbId: number;
