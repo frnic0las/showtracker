@@ -6,8 +6,8 @@ interface ConfirmDialogProps {
   open: boolean;
   title: string;
   message: string;
-  /** Defaults to "Mark watched". */
-  confirmLabel?: string;
+  /** Action label for the confirm button, e.g. "Mark watched". */
+  confirmLabel: string;
   /** Defaults to "Cancel". */
   cancelLabel?: string;
   onConfirm: () => void;
@@ -26,7 +26,7 @@ export function ConfirmDialog({
   open,
   title,
   message,
-  confirmLabel = 'Mark watched',
+  confirmLabel,
   cancelLabel = 'Cancel',
   onConfirm,
   onCancel,
