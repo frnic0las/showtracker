@@ -71,7 +71,7 @@ export default async function MoviesArchivePage({
     redirect('/login');
   }
 
-  const sort = parseMovieSort((await searchParams).sort);
+  const sort = parseMovieSort((await searchParams).sort, 'watched');
   const { watched } = await getUserMovies(user.id, { watched: sort });
 
   return (

@@ -2,21 +2,19 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import type { MovieSort } from '@/types/movies';
+import { SECTION_SORTS, type MovieSection, type MovieSort } from '@/types/movies';
 
 interface MovieSortMenuProps {
-  /** Which surface the control labels — changes the two timeline labels. */
-  section: 'watchlist' | 'watched';
+  /** Which surface the control labels — changes the two timeline labels and keys. */
+  section: MovieSection;
   /** The currently active order, reflected in the trigger label and the checked item. */
   active: MovieSort;
   /** Number of movies in the section; the control is hidden when there's nothing to sort. */
   count: number;
 }
 
-/** The menu order, top → bottom. Labels for the two timeline keys depend on the section. */
-const SORT_KEYS: readonly MovieSort[] = ['added_desc', 'added_asc', 'title_asc', 'year_desc'];
-
-const LABELS: Record<'watchlist' | 'watched', Record<MovieSort, string>> = {
+/** Menu-item labels per section; only the two timeline keys differ between them. */
+const LABELS: Record<MovieSection, Partial<Record<MovieSort, string>>> = {
   watchlist: {
     added_desc: 'Recently added',
     added_asc: 'Oldest added',
@@ -24,8 +22,8 @@ const LABELS: Record<'watchlist' | 'watched', Record<MovieSort, string>> = {
     year_desc: 'Release year',
   },
   watched: {
-    added_desc: 'Recently watched',
-    added_asc: 'Oldest watched',
+    watched_desc: 'Recently watched',
+    watched_asc: 'Oldest watched',
     title_asc: 'Title (A–Z)',
     year_desc: 'Release year',
   },
@@ -82,6 +80,7 @@ export function MovieSortMenu({ section, active, count }: MovieSortMenuProps) {
   const [mounted, setMounted] = useState(false);
   const [shown, setShown] = useState(false);
   const labels = LABELS[section];
+  const keys = SECTION_SORTS[section].keys;
 
   // Close on Escape while open.
   useEffect(() => {
@@ -141,7 +140,7 @@ export function MovieSortMenu({ section, active, count }: MovieSortMenuProps) {
               shown ? 'scale-100 opacity-100' : 'scale-95 opacity-0'
             }`}
           >
-            {SORT_KEYS.map((key) => {
+            {keys.map((key) => {
               const selected = key === active;
               return (
                 <Link

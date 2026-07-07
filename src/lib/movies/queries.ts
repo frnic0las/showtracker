@@ -38,6 +38,7 @@ interface SortableMovie {
 function movieComparator(sort: MovieSort): (a: SortableMovie, b: SortableMovie) => number {
   switch (sort) {
     case 'added_asc':
+    case 'watched_asc':
       return (a, b) => a.sortKey.localeCompare(b.sortKey);
     case 'title_asc':
       return (a, b) => a.movie.title.localeCompare(b.movie.title, undefined, { sensitivity: 'base' });
@@ -49,6 +50,7 @@ function movieComparator(sort: MovieSort): (a: SortableMovie, b: SortableMovie) 
         return b.movie.year.localeCompare(a.movie.year);
       };
     case 'added_desc':
+    case 'watched_desc':
     default:
       return (a, b) => b.sortKey.localeCompare(a.sortKey);
   }
