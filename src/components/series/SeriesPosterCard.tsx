@@ -28,7 +28,7 @@ export function SeriesPosterCard({
   const poster = posterUrl(posterPath, 'w185');
 
   return (
-    <Link href={`/series/${tmdbId}`} className="min-w-0">
+    <Link href={`/series/${tmdbId}`} prefetch={false} className="min-w-0">
       <div
         className={`relative aspect-[2/3] overflow-hidden rounded-md bg-bg-secondary${
           dimmed ? ' opacity-[.62]' : ''
