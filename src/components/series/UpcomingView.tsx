@@ -93,6 +93,7 @@ export function UpcomingView({ episodes, today }: UpcomingViewProps) {
                   <Link
                     key={`${episode.tmdbId}-${episode.seasonNumber}-${episode.episodeNumber}`}
                     href={`/series/${episode.tmdbId}`}
+                    prefetch={false}
                     className="relative flex items-center gap-3 px-3 py-2 [&:not(:first-child)]:before:absolute [&:not(:first-child)]:before:left-[84px] [&:not(:first-child)]:before:right-0 [&:not(:first-child)]:before:top-0 [&:not(:first-child)]:before:h-px [&:not(:first-child)]:before:bg-separator"
                   >
                     <div className="h-[90px] w-[60px] shrink-0 overflow-hidden rounded-sm bg-bg-secondary">
