@@ -30,11 +30,21 @@ const DAY_MS = 24 * HOUR_MS;
  * How long a cached series stays fresh, keyed on its TMDB `status`
  * (see docs/DATABASE.md): an actively-airing show is refreshed far more often
  * than one that has finished, so ended series don't trigger needless TMDB calls.
+ * Single source of truth for freshness — the on-demand detail refresh and the
+ * cron/`after()` batch refresh both derive their staleness from here.
  */
+const STALE_MS_BY_STATUS: Record<string, number> = {
+  'Returning Series': 6 * HOUR_MS,
+  Ended: 7 * DAY_MS,
+  Canceled: 7 * DAY_MS,
+};
+const DEFAULT_STALE_MS = DAY_MS;
+
 function staleMsForStatus(status: string | null): number {
-  if (status === 'Returning Series') return 6 * HOUR_MS;
-  if (status === 'Ended' || status === 'Canceled') return 7 * DAY_MS;
-  return DAY_MS;
+  if (status !== null && status in STALE_MS_BY_STATUS) {
+    return STALE_MS_BY_STATUS[status];
+  }
+  return DEFAULT_STALE_MS;
 }
 
 interface SeriesProgressRpcRow {
@@ -326,12 +336,13 @@ interface StaleSeriesRow {
 
 /**
  * Refreshes `series_cache` for every currently-airing ("Returning Series")
- * series whose cache hasn't been refreshed in the last 12 hours. Intended to
- * be run from the daily cron job and the background `after()` refresh on app
- * launch, replacing the old lazy/staleness refresh in
- * `getSeriesDetailWithProgress`. Series are refreshed sequentially, not in
- * parallel, to respect TMDB rate limits; one failing series is logged and
- * skipped rather than aborting the whole batch.
+ * series whose cache is stale under the shared `staleMsForStatus` policy (6h
+ * for a Returning Series). Intended to be run from the daily cron job and the
+ * background `after()` refresh on app launch. Ended/Canceled and other series
+ * are not swept here — they change rarely and are refreshed on demand by the
+ * detail page's own `after()` refresh when visited. Series are refreshed
+ * sequentially, not in parallel, to respect TMDB rate limits; one failing
+ * series is logged and skipped rather than aborting the whole batch.
  */
 export async function refreshStaleSeries(): Promise<{
   refreshed: number;
@@ -339,7 +350,7 @@ export async function refreshStaleSeries(): Promise<{
   skipped: number;
 }> {
   const admin = createAdminClient();
-  const cutoff = new Date(Date.now() - 12 * HOUR_MS).toISOString();
+  const cutoff = new Date(Date.now() - staleMsForStatus('Returning Series')).toISOString();
 
   const { data: staleSeries, error: staleSeriesError } = await admin
     .from('series_cache')
