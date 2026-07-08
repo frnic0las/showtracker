@@ -2,12 +2,16 @@
 
 import { useEffect, useRef, useState, useTransition } from 'react';
 import { removeMovie, toggleMovieWatched } from '@/actions/movies';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { isFutureDate } from '@/lib/dates';
 
 interface MovieActionSheetProps {
   tmdbId: number;
   title: string;
   /** Whether the movie is currently in the Watched section. */
   watched: boolean;
+  /** Movie release date; a strictly-future date confirms before marking watched. */
+  releaseDate: string | null;
   open: boolean;
   onClose: () => void;
 }
@@ -76,22 +80,31 @@ function TrashIcon() {
  * navigation, since movies have no detail page. On any error the overlay stays
  * open and surfaces the message. Structurally the twin of `SeriesActionSheet`.
  */
-export function MovieActionSheet({ tmdbId, title, watched, open, onClose }: MovieActionSheetProps) {
+export function MovieActionSheet({
+  tmdbId,
+  title,
+  watched,
+  releaseDate,
+  open,
+  onClose,
+}: MovieActionSheetProps) {
   const [mode, setMode] = useState<'sheet' | 'confirm'>('sheet');
   const [mounted, setMounted] = useState(false);
   const [shown, setShown] = useState(false);
   const [confirmShown, setConfirmShown] = useState(false);
+  const [watchConfirmOpen, setWatchConfirmOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
 
-  // Reset to the sheet view (not the confirm alert) and clear any prior error
-  // each time the overlay is opened.
+  // Reset to the sheet view (not the confirm alert), close the watched-confirm
+  // dialog, and clear any prior error each time the overlay is opened.
   useEffect(() => {
     if (open) {
       setMode('sheet');
+      setWatchConfirmOpen(false);
       setError(null);
     }
   }, [open]);
@@ -139,7 +152,7 @@ export function MovieActionSheet({ tmdbId, title, watched, open, onClose }: Movi
     onClose();
   }
 
-  function handleToggle() {
+  function runToggle() {
     setError(null);
     startTransition(async () => {
       const result = await toggleMovieWatched(tmdbId);
@@ -147,8 +160,20 @@ export function MovieActionSheet({ tmdbId, title, watched, open, onClose }: Movi
         setError(result.error);
         return;
       }
+      setWatchConfirmOpen(false);
       onClose();
     });
+  }
+
+  function handleToggle() {
+    // Marking an unreleased movie watched asks for confirmation first; clearing
+    // the watched flag or a movie already released toggles immediately.
+    if (!watched && isFutureDate(releaseDate)) {
+      setError(null);
+      setWatchConfirmOpen(true);
+      return;
+    }
+    runToggle();
   }
 
   function handleRemove() {
@@ -166,6 +191,7 @@ export function MovieActionSheet({ tmdbId, title, watched, open, onClose }: Movi
   if (!mounted) return null;
 
   return (
+    <>
     <div
       className={`fixed inset-0 z-50 flex flex-col items-center bg-black/40 transition-opacity duration-300 ${
         mode === 'confirm' ? 'justify-center' : 'justify-end'
@@ -271,5 +297,21 @@ export function MovieActionSheet({ tmdbId, title, watched, open, onClose }: Movi
         </div>
       )}
     </div>
+
+      <ConfirmDialog
+        open={watchConfirmOpen}
+        title="Not released yet"
+        message="This movie hasn't been released yet. Mark it as watched anyway?"
+        confirmLabel="Mark watched"
+        error={error}
+        pending={isPending}
+        onConfirm={runToggle}
+        onCancel={() => {
+          if (isPending) return;
+          setError(null);
+          setWatchConfirmOpen(false);
+        }}
+      />
+    </>
   );
 }

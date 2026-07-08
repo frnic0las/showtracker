@@ -49,16 +49,17 @@ export function daysUntil(dateStr: string, today: string = todayIsoDate()): numb
 }
 
 /**
- * Whether `airDate` is strictly after the browser's local today, resolved via
+ * Whether `date` (a `YYYY-MM-DD` string — an episode air date or a movie
+ * release date) is strictly after the browser's local today, resolved via
  * `Intl.DateTimeFormat().resolvedOptions().timeZone`. Meant to be called at
  * click time inside an event handler — never during render — so the check
  * reflects the viewer's real clock without risking an SSR/hydration mismatch.
- * Returns `false` when `airDate` is `null` (unknown dates never block).
+ * Returns `false` when `date` is `null` (unknown dates never block).
  */
-export function isFutureAirDate(airDate: string | null): boolean {
-  if (!airDate) {
+export function isFutureDate(date: string | null): boolean {
+  if (!date) {
     return false;
   }
   const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  return daysUntil(airDate, localTodayIsoDate(timeZone)) > 0;
+  return daysUntil(date, localTodayIsoDate(timeZone)) > 0;
 }

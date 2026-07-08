@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { markSeasonWatched, unmarkSeasonWatched } from '@/actions/series';
 import { EpisodeRow } from '@/components/series/EpisodeRow';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
-import { isFutureAirDate } from '@/lib/dates';
+import { isFutureDate } from '@/lib/dates';
 import type { EpisodeWithStatus } from '@/types/series';
 
 interface SeasonAccordionProps {
@@ -91,7 +91,7 @@ export function SeasonAccordion({
   function handleSeasonToggle() {
     if (
       !complete &&
-      episodes.some((episode) => !episode.watched && isFutureAirDate(episode.airDate))
+      episodes.some((episode) => !episode.watched && isFutureDate(episode.airDate))
     ) {
       setConfirmOpen(true);
       return;
