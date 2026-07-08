@@ -8,6 +8,7 @@
  * progress calculation in this module.
  */
 
+import { after } from 'next/server';
 import { todayIsoDate } from '@/lib/dates';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
@@ -23,6 +24,18 @@ import type {
 } from '@/types/series';
 
 const HOUR_MS = 60 * 60 * 1000;
+const DAY_MS = 24 * HOUR_MS;
+
+/**
+ * How long a cached series stays fresh, keyed on its TMDB `status`
+ * (see docs/DATABASE.md): an actively-airing show is refreshed far more often
+ * than one that has finished, so ended series don't trigger needless TMDB calls.
+ */
+function staleMsForStatus(status: string | null): number {
+  if (status === 'Returning Series') return 6 * HOUR_MS;
+  if (status === 'Ended' || status === 'Canceled') return 7 * DAY_MS;
+  return DAY_MS;
+}
 
 interface SeriesProgressRpcRow {
   tmdb_id: number;
@@ -365,10 +378,11 @@ export async function refreshStaleSeries(): Promise<{
 /**
  * Returns the full detail view for one series: cached metadata, the current
  * user's per-season and per-episode watch progress, and their tracking status
- * (`null` when not tracked). Refreshes the cache from TMDB first only when
- * it's missing or has no episodes cached yet — ongoing freshness is handled
- * by the daily cron job and the background `after()` refresh instead. Returns
- * `null` only when the series does not exist on TMDB.
+ * (`null` when not tracked). Blocks on a TMDB refresh only on first visit —
+ * when the series is missing from cache or has no episodes cached yet. An
+ * already-cached-but-stale series is served immediately and refreshed in the
+ * background via `after()` instead of delaying the response. Returns `null`
+ * only when the series does not exist on TMDB.
  */
 export async function getSeriesDetailWithProgress(
   userId: string,
@@ -379,91 +393,109 @@ export async function getSeriesDetailWithProgress(
   const selectColumns =
     'tmdb_id, title, overview, poster_path, backdrop_path, status, first_air_date, last_fetched_at';
 
-  const { data: initialSeriesCache, error: seriesCacheError } = await supabase
-    .from('series_cache')
-    .select(selectColumns)
-    .eq('tmdb_id', tmdbId)
-    .maybeSingle()
-    .overrideTypes<SeriesCacheFullRow, { merge: false }>();
+  const [
+    { data: initialSeriesCache, error: seriesCacheError },
+    { data: initialEpisodes, error: episodesError },
+    { data: userEpisodes, error: userEpisodesError },
+    { data: tracking, error: trackingError },
+  ] = await Promise.all([
+    supabase
+      .from('series_cache')
+      .select(selectColumns)
+      .eq('tmdb_id', tmdbId)
+      .maybeSingle()
+      .overrideTypes<SeriesCacheFullRow, { merge: false }>(),
+    supabase
+      .from('episodes_cache')
+      .select('season_number, episode_number, name, air_date, still_path')
+      .eq('tmdb_series_id', tmdbId)
+      .gt('season_number', 0)
+      .order('season_number', { ascending: true })
+      .order('episode_number', { ascending: true })
+      .overrideTypes<EpisodeCacheFullRow[], { merge: false }>(),
+    supabase
+      .from('user_episodes')
+      .select('season_number, episode_number, watched_at')
+      .eq('user_id', userId)
+      .eq('tmdb_series_id', tmdbId)
+      .overrideTypes<UserEpisodeWatchedRow[], { merge: false }>(),
+    supabase
+      .from('user_series')
+      .select('status')
+      .eq('user_id', userId)
+      .eq('tmdb_id', tmdbId)
+      .maybeSingle()
+      .overrideTypes<{ status: 'watching' | 'stopped' | 'watchlist' }, { merge: false }>(),
+  ]);
 
   if (seriesCacheError) {
     throw new Error(`Could not load series details: ${seriesCacheError.message}`);
   }
-
-  let seriesCache = initialSeriesCache;
-
-  const { count: episodeCount, error: episodeCountError } = await supabase
-    .from('episodes_cache')
-    .select('id', { count: 'exact', head: true })
-    .eq('tmdb_series_id', tmdbId)
-    .gt('season_number', 0);
-
-  if (episodeCountError) {
-    throw new Error(`Could not check cached episodes: ${episodeCountError.message}`);
+  if (episodesError) {
+    throw new Error(`Could not load episodes: ${episodesError.message}`);
+  }
+  if (userEpisodesError) {
+    throw new Error(`Could not load your watch history: ${userEpisodesError.message}`);
+  }
+  if (trackingError) {
+    throw new Error(`Could not load your tracking status: ${trackingError.message}`);
   }
 
-  const needsRefresh = !seriesCache || !episodeCount;
+  let seriesCache = initialSeriesCache;
+  let episodes = initialEpisodes ?? [];
 
-  if (needsRefresh) {
+  if (!seriesCache || episodes.length === 0) {
     const found = await refreshSeriesCache(tmdbId);
     if (!found) {
       return null;
     }
 
-    const { data: refreshed, error: refreshedError } = await supabase
-      .from('series_cache')
-      .select(selectColumns)
-      .eq('tmdb_id', tmdbId)
-      .maybeSingle()
-      .overrideTypes<SeriesCacheFullRow, { merge: false }>();
+    const [
+      { data: refreshedSeriesCache, error: refreshedSeriesCacheError },
+      { data: refreshedEpisodes, error: refreshedEpisodesError },
+    ] = await Promise.all([
+      supabase
+        .from('series_cache')
+        .select(selectColumns)
+        .eq('tmdb_id', tmdbId)
+        .maybeSingle()
+        .overrideTypes<SeriesCacheFullRow, { merge: false }>(),
+      supabase
+        .from('episodes_cache')
+        .select('season_number, episode_number, name, air_date, still_path')
+        .eq('tmdb_series_id', tmdbId)
+        .gt('season_number', 0)
+        .order('season_number', { ascending: true })
+        .order('episode_number', { ascending: true })
+        .overrideTypes<EpisodeCacheFullRow[], { merge: false }>(),
+    ]);
 
-    if (refreshedError) {
-      throw new Error(`Could not load series details: ${refreshedError.message}`);
+    if (refreshedSeriesCacheError) {
+      throw new Error(`Could not load series details: ${refreshedSeriesCacheError.message}`);
     }
-    if (!refreshed) {
+    if (refreshedEpisodesError) {
+      throw new Error(`Could not load episodes: ${refreshedEpisodesError.message}`);
+    }
+    if (!refreshedSeriesCache) {
       throw new Error('Series details missing after refresh.');
     }
-    seriesCache = refreshed;
+    seriesCache = refreshedSeriesCache;
+    episodes = refreshedEpisodes ?? [];
+  } else if (
+    Date.now() - new Date(seriesCache.last_fetched_at).getTime() >
+    staleMsForStatus(seriesCache.status)
+  ) {
+    after(async () => {
+      try {
+        await refreshSeriesCache(tmdbId);
+      } catch (error) {
+        console.warn(`Background refresh failed for series ${tmdbId}:`, error);
+      }
+    });
   }
 
   if (!seriesCache) {
     throw new Error('Series details missing.');
-  }
-
-  const { data: episodes, error: episodesError } = await supabase
-    .from('episodes_cache')
-    .select('season_number, episode_number, name, air_date, still_path')
-    .eq('tmdb_series_id', tmdbId)
-    .gt('season_number', 0)
-    .order('season_number', { ascending: true })
-    .order('episode_number', { ascending: true })
-    .overrideTypes<EpisodeCacheFullRow[], { merge: false }>();
-
-  if (episodesError) {
-    throw new Error(`Could not load episodes: ${episodesError.message}`);
-  }
-
-  const { data: userEpisodes, error: userEpisodesError } = await supabase
-    .from('user_episodes')
-    .select('season_number, episode_number, watched_at')
-    .eq('user_id', userId)
-    .eq('tmdb_series_id', tmdbId)
-    .overrideTypes<UserEpisodeWatchedRow[], { merge: false }>();
-
-  if (userEpisodesError) {
-    throw new Error(`Could not load your watch history: ${userEpisodesError.message}`);
-  }
-
-  const { data: tracking, error: trackingError } = await supabase
-    .from('user_series')
-    .select('status')
-    .eq('user_id', userId)
-    .eq('tmdb_id', tmdbId)
-    .maybeSingle()
-    .overrideTypes<{ status: 'watching' | 'stopped' | 'watchlist' }, { merge: false }>();
-
-  if (trackingError) {
-    throw new Error(`Could not load your tracking status: ${trackingError.message}`);
   }
 
   const watchedAtByKey = new Map(
@@ -473,7 +505,7 @@ export async function getSeriesDetailWithProgress(
     ]),
   );
 
-  const episodesWithStatus: EpisodeWithStatus[] = (episodes ?? []).map((episode) => {
+  const episodesWithStatus: EpisodeWithStatus[] = episodes.map((episode) => {
     const watchedAt =
       watchedAtByKey.get(`${episode.season_number}:${episode.episode_number}`) ?? null;
     return {
