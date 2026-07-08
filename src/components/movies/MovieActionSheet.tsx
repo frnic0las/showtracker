@@ -167,9 +167,13 @@ export function MovieActionSheet({
 
   function handleToggle() {
     // Marking an unreleased movie watched asks for confirmation first; clearing
-    // the watched flag or a movie already released toggles immediately.
+    // the watched flag or a movie already released toggles immediately. Close
+    // the sheet before opening the confirm so a single overlay owns the body
+    // scroll lock and the Escape handler at a time — mirroring the remove flow
+    // in SeriesActionSheet. On cancel the user lands back on the movie grid.
     if (!watched && isFutureDate(releaseDate)) {
       setError(null);
+      onClose();
       setWatchConfirmOpen(true);
       return;
     }
@@ -188,10 +192,12 @@ export function MovieActionSheet({
     });
   }
 
-  if (!mounted) return null;
-
+  // The sheet overlay is conditionally mounted, but the watched-confirm dialog
+  // is always rendered so closing the sheet (before opening the confirm) does
+  // not unmount the dialog with it.
   return (
     <>
+      {mounted ? (
     <div
       className={`fixed inset-0 z-50 flex flex-col items-center bg-black/40 transition-opacity duration-300 ${
         mode === 'confirm' ? 'justify-center' : 'justify-end'
@@ -297,6 +303,7 @@ export function MovieActionSheet({
         </div>
       )}
     </div>
+      ) : null}
 
       <ConfirmDialog
         open={watchConfirmOpen}
