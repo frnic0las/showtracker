@@ -75,10 +75,11 @@ function TrashIcon() {
  * tile in `MovieCard`, plus the destructive Remove confirmation alert — one
  * client island per card. "Mark as watched / unwatched" is reversible and
  * applies immediately via `toggleMovieWatched` (the labelled twin of the
- * poster checkmark); Remove is guarded by a centered alert before `removeMovie`
- * and, on success, the tile drops out of the grid on revalidation — no
- * navigation, since movies have no detail page. On any error the overlay stays
- * open and surfaces the message. Structurally the twin of `SeriesActionSheet`.
+ * poster checkmark); Remove is guarded by the shared `ConfirmDialog` before
+ * `removeMovie` and, on success, the tile drops out of the grid on
+ * revalidation — no navigation, since movies have no detail page. On any error
+ * the overlay stays open and surfaces the message. Structurally the twin of
+ * `SeriesActionSheet`.
  */
 export function MovieActionSheet({
   tmdbId,
@@ -88,23 +89,22 @@ export function MovieActionSheet({
   open,
   onClose,
 }: MovieActionSheetProps) {
-  const [mode, setMode] = useState<'sheet' | 'confirm'>('sheet');
   const [mounted, setMounted] = useState(false);
   const [shown, setShown] = useState(false);
-  const [confirmShown, setConfirmShown] = useState(false);
   const [watchConfirmOpen, setWatchConfirmOpen] = useState(false);
+  const [removeConfirmOpen, setRemoveConfirmOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
 
-  // Reset to the sheet view (not the confirm alert), close the watched-confirm
-  // dialog, and clear any prior error each time the overlay is opened.
+  // Close both confirm dialogs and clear any prior error each time the sheet is
+  // opened, so a reopened sheet always lands on its action list.
   useEffect(() => {
     if (open) {
-      setMode('sheet');
       setWatchConfirmOpen(false);
+      setRemoveConfirmOpen(false);
       setError(null);
     }
   }, [open]);
@@ -121,17 +121,6 @@ export function MovieActionSheet({
     const timer = setTimeout(() => setMounted(false), 300);
     return () => clearTimeout(timer);
   }, [open]);
-
-  // The confirm alert swaps in while the overlay is already open (`shown` is
-  // true), so it needs its own enter trigger: flip `confirmShown` on the next
-  // frame after entering confirm mode to play the fade + scale-in.
-  useEffect(() => {
-    if (open && mode === 'confirm') {
-      const raf = requestAnimationFrame(() => setConfirmShown(true));
-      return () => cancelAnimationFrame(raf);
-    }
-    setConfirmShown(false);
-  }, [open, mode]);
 
   // Lock body scroll and wire Escape-to-close while the overlay is open.
   useEffect(() => {
@@ -150,6 +139,21 @@ export function MovieActionSheet({
   function close() {
     if (isPending) return;
     onClose();
+  }
+
+  function openRemoveConfirm() {
+    // Close the sheet before opening the confirm so a single overlay owns the
+    // body scroll lock and the Escape handler at a time — mirroring the
+    // watched-confirm flow and SeriesActionSheet's remove flow.
+    setError(null);
+    onClose();
+    setRemoveConfirmOpen(true);
+  }
+
+  function closeRemoveConfirm() {
+    if (isPending) return;
+    setError(null);
+    setRemoveConfirmOpen(false);
   }
 
   function runToggle() {
@@ -188,121 +192,82 @@ export function MovieActionSheet({
         setError(result.error);
         return;
       }
-      onClose();
+      setRemoveConfirmOpen(false);
     });
   }
 
-  // The sheet overlay is conditionally mounted, but the watched-confirm dialog
-  // is always rendered so closing the sheet (before opening the confirm) does
-  // not unmount the dialog with it.
+  // The sheet overlay is conditionally mounted, but both confirm dialogs are
+  // always rendered so closing the sheet (before opening a confirm) does not
+  // unmount the dialog with it.
   return (
     <>
       {mounted ? (
-    <div
-      className={`fixed inset-0 z-50 flex flex-col items-center bg-black/40 transition-opacity duration-300 ${
-        mode === 'confirm' ? 'justify-center' : 'justify-end'
-      } ${shown ? 'opacity-100' : 'opacity-0'}`}
-    >
-      <button
-        type="button"
-        onClick={close}
-        aria-label="Close"
-        tabIndex={-1}
-        className="absolute inset-0 h-full w-full cursor-default"
-      />
-
-      {mode === 'sheet' ? (
         <div
-          role="menu"
-          aria-label={`Actions for ${title}`}
-          className={`relative w-full max-w-[430px] px-2 pb-[calc(8px+env(safe-area-inset-bottom))] transition-transform duration-300 ease-out ${
-            shown ? 'translate-y-0' : 'translate-y-full'
+          className={`fixed inset-0 z-50 flex flex-col items-center justify-end bg-black/40 transition-opacity duration-300 ${
+            shown ? 'opacity-100' : 'opacity-0'
           }`}
         >
-          <div className="overflow-hidden rounded-lg bg-bg-elevated/95 backdrop-blur-xl">
-            <div className="border-b border-separator px-4 pb-3 pt-3.5 text-center text-[13px] leading-snug text-text-secondary">
-              <span className="font-semibold text-text-primary">{title}</span>
-              <br />
-              {watched ? 'Watched' : 'In your watchlist'}
+          <button
+            type="button"
+            onClick={close}
+            aria-label="Close"
+            tabIndex={-1}
+            className="absolute inset-0 h-full w-full cursor-default"
+          />
+
+          <div
+            role="menu"
+            aria-label={`Actions for ${title}`}
+            className={`relative w-full max-w-[430px] px-2 pb-[calc(8px+env(safe-area-inset-bottom))] transition-transform duration-300 ease-out ${
+              shown ? 'translate-y-0' : 'translate-y-full'
+            }`}
+          >
+            <div className="overflow-hidden rounded-lg bg-bg-elevated/95 backdrop-blur-xl">
+              <div className="border-b border-separator px-4 pb-3 pt-3.5 text-center text-[13px] leading-snug text-text-secondary">
+                <span className="font-semibold text-text-primary">{title}</span>
+                <br />
+                {watched ? 'Watched' : 'In your watchlist'}
+              </div>
+
+              <button
+                type="button"
+                role="menuitem"
+                onClick={handleToggle}
+                disabled={isPending}
+                className="flex min-h-[57px] w-full items-center justify-center gap-2 text-[20px] font-semibold text-accent disabled:opacity-50"
+              >
+                {watched ? <CircleIcon /> : <CheckIcon />}
+                {watched ? 'Mark as unwatched' : 'Mark as watched'}
+              </button>
+
+              <button
+                type="button"
+                role="menuitem"
+                onClick={openRemoveConfirm}
+                disabled={isPending}
+                className="flex min-h-[57px] w-full items-center justify-center gap-2 border-t border-separator text-[20px] text-accent-red disabled:opacity-50"
+              >
+                <TrashIcon />
+                Remove from movies
+              </button>
+
+              {error ? (
+                <p className="border-t border-separator px-4 py-3 text-center text-[13px] text-accent-red">
+                  {error}
+                </p>
+              ) : null}
             </div>
 
             <button
               type="button"
-              role="menuitem"
-              onClick={handleToggle}
-              disabled={isPending}
-              className="flex min-h-[57px] w-full items-center justify-center gap-2 text-[20px] font-semibold text-accent disabled:opacity-50"
-            >
-              {watched ? <CircleIcon /> : <CheckIcon />}
-              {watched ? 'Mark as unwatched' : 'Mark as watched'}
-            </button>
-
-            <button
-              type="button"
-              role="menuitem"
-              onClick={() => setMode('confirm')}
-              disabled={isPending}
-              className="flex min-h-[57px] w-full items-center justify-center gap-2 border-t border-separator text-[20px] text-accent-red disabled:opacity-50"
-            >
-              <TrashIcon />
-              Remove from movies
-            </button>
-
-            {error ? (
-              <p className="border-t border-separator px-4 py-3 text-center text-[13px] text-accent-red">
-                {error}
-              </p>
-            ) : null}
-          </div>
-
-          <button
-            type="button"
-            onClick={close}
-            disabled={isPending}
-            className="mt-2 min-h-[57px] w-full rounded-lg bg-bg-elevated/95 text-[20px] font-semibold text-accent backdrop-blur-xl disabled:opacity-50"
-          >
-            Cancel
-          </button>
-        </div>
-      ) : (
-        <div
-          role="alertdialog"
-          aria-modal="true"
-          aria-label={`Remove ${title}?`}
-          className={`relative w-[270px] overflow-hidden rounded-[14px] bg-bg-elevated/95 text-center backdrop-blur-xl transition duration-200 ease-out ${
-            confirmShown ? 'scale-100 opacity-100' : 'scale-95 opacity-0'
-          }`}
-        >
-          <div className="px-4 pb-[18px] pt-5">
-            <p className="text-[17px] font-semibold text-text-primary">
-              Remove &ldquo;{title}&rdquo;?
-            </p>
-            <p className="mt-1 text-[13px] leading-snug text-text-primary">
-              This removes the movie from your list. This can&rsquo;t be undone.
-            </p>
-            {error ? <p className="mt-2 text-[13px] leading-snug text-accent-red">{error}</p> : null}
-          </div>
-          <div className="flex border-t border-separator">
-            <button
-              type="button"
               onClick={close}
               disabled={isPending}
-              className="min-h-[44px] flex-1 text-[17px] text-accent disabled:opacity-50"
+              className="mt-2 min-h-[57px] w-full rounded-lg bg-bg-elevated/95 text-[20px] font-semibold text-accent backdrop-blur-xl disabled:opacity-50"
             >
               Cancel
             </button>
-            <button
-              type="button"
-              onClick={handleRemove}
-              disabled={isPending}
-              className="min-h-[44px] flex-1 border-l border-separator text-[17px] font-semibold text-accent-red disabled:opacity-50"
-            >
-              Remove
-            </button>
           </div>
         </div>
-      )}
-    </div>
       ) : null}
 
       <ConfirmDialog
@@ -318,6 +283,18 @@ export function MovieActionSheet({
           setError(null);
           setWatchConfirmOpen(false);
         }}
+      />
+
+      <ConfirmDialog
+        open={removeConfirmOpen}
+        title={`Remove “${title}”?`}
+        message="This removes the movie from your list. This can’t be undone."
+        confirmLabel="Remove"
+        destructive
+        error={error}
+        pending={isPending}
+        onConfirm={handleRemove}
+        onCancel={closeRemoveConfirm}
       />
     </>
   );
