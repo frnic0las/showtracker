@@ -5,6 +5,7 @@ set -euo pipefail
 # Tokens lus depuis .env.local à la racine du repo. Ajouter dans .env.local :
 #   SUPABASE_ACCESS_TOKEN=sbp_...   (https://supabase.com/dashboard/account/tokens)
 #   VERCEL_TOKEN=...                (https://vercel.com/account/settings/tokens)
+#   VERCEL_EMAIL=...                (email du compte Vercel, doit matcher git config user.email)
 
 if [ ! -f .env.local ]; then
   echo "✗ Fichier .env.local introuvable à la racine du repo."
@@ -16,6 +17,7 @@ set +a
 
 : "${SUPABASE_ACCESS_TOKEN:?✗ SUPABASE_ACCESS_TOKEN manquant dans .env.local}"
 : "${VERCEL_TOKEN:?✗ VERCEL_TOKEN manquant dans .env.local}"
+: "${VERCEL_EMAIL:?✗ VERCEL_EMAIL manquant dans .env.local}"
 
 echo "=== ShowTracker — Pre-deploy checks ==="
 
@@ -26,6 +28,12 @@ if [ "$BRANCH" != "main" ]; then
 fi
 if [ -n "$(git status --porcelain)" ]; then
   echo "✗ Working directory is dirty. Commit or stash changes first."
+  exit 1
+fi
+GIT_EMAIL=$(git config user.email)
+if [ "$GIT_EMAIL" != "$VERCEL_EMAIL" ]; then
+  echo "✗ git user.email ($GIT_EMAIL) ne matche pas VERCEL_EMAIL ($VERCEL_EMAIL)."
+  echo "  → git config user.email \"$VERCEL_EMAIL\""
   exit 1
 fi
 
