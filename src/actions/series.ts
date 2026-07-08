@@ -35,7 +35,7 @@ async function requireTrackedSeries(tmdbSeriesId: number) {
 
   const { data: tracked, error } = await supabase
     .from('user_series')
-    .select('tmdb_id')
+    .select('tmdb_id, status')
     .eq('user_id', user.id)
     .eq('tmdb_id', tmdbSeriesId)
     .maybeSingle();
@@ -47,7 +47,32 @@ async function requireTrackedSeries(tmdbSeriesId: number) {
     return { ok: false as const, error: 'This series is not in your list.' };
   }
 
-  return { ok: true as const, user, supabase };
+  return { ok: true as const, user, supabase, status: tracked.status as SeriesStatus };
+}
+
+/**
+ * Promotes a series from `watchlist` to `watching` after its first watch on the
+ * mark-as-watched path. A series the user has started watching no longer belongs
+ * in the Watchlist bucket. Best-effort: the episode is already recorded, so a
+ * failed status update must not fail the calling action — the series simply
+ * keeps its `watchlist` status until the next mark or a manual status change.
+ * There is no reverse demotion: unwatching never reverts `watching` back to
+ * `watchlist`; that is a deliberate action via the status picker.
+ */
+async function promoteWatchlistToWatching(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+  tmdbSeriesId: number,
+): Promise<void> {
+  const { error } = await supabase
+    .from('user_series')
+    .update({ status: 'watching' })
+    .eq('user_id', userId)
+    .eq('tmdb_id', tmdbSeriesId);
+
+  if (error) {
+    console.warn(`Failed to promote series ${tmdbSeriesId} to watching:`, error);
+  }
 }
 
 /**
@@ -155,7 +180,7 @@ export async function markSeasonWatched(
   if (!guard.ok) {
     return guard;
   }
-  const { user, supabase } = guard;
+  const { user, supabase, status } = guard;
 
   const { data: episodes, error: episodesError } = await supabase
     .from('episodes_cache')
@@ -188,6 +213,10 @@ export async function markSeasonWatched(
 
   if (error) {
     return { ok: false, error: 'Could not mark season as watched. Please try again.' };
+  }
+
+  if (status === 'watchlist') {
+    await promoteWatchlistToWatching(supabase, user.id, tmdbSeriesId);
   }
 
   revalidatePath(`/series/${tmdbSeriesId}`);
@@ -226,7 +255,7 @@ export async function toggleEpisodeWatched(
   if (!guard.ok) {
     return guard;
   }
-  const { user, supabase } = guard;
+  const { user, supabase, status } = guard;
 
   const { data: deleted, error: deleteError } = await supabase
     .from('user_episodes')
@@ -262,6 +291,10 @@ export async function toggleEpisodeWatched(
 
   if (insertError) {
     return { ok: false, error: 'Could not update the episode. Please try again.' };
+  }
+
+  if (status === 'watchlist') {
+    await promoteWatchlistToWatching(supabase, user.id, tmdbSeriesId);
   }
 
   revalidatePath(`/series/${tmdbSeriesId}`);
