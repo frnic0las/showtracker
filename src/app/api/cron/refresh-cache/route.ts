@@ -5,8 +5,7 @@ export const maxDuration = 60;
 
 /**
  * Daily cron entry point (see `vercel.json`) that refreshes `series_cache`
- * for every series that is stale under the per-status freshness policy.
- * Requires the `CRON_SECRET`
+ * for every stale, currently-airing series. Requires the `CRON_SECRET`
  * bearer token that Vercel injects on cron invocations, so this can't be
  * triggered by an unauthenticated caller.
  */

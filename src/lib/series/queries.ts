@@ -40,9 +40,6 @@ const STALE_MS_BY_STATUS: Record<string, number> = {
 };
 const DEFAULT_STALE_MS = DAY_MS;
 
-/** The smallest per-status threshold, used as a coarse SQL pre-filter. */
-const MIN_STALE_MS = Math.min(DEFAULT_STALE_MS, ...Object.values(STALE_MS_BY_STATUS));
-
 function staleMsForStatus(status: string | null): number {
   if (status !== null && status in STALE_MS_BY_STATUS) {
     return STALE_MS_BY_STATUS[status];
@@ -335,19 +332,15 @@ async function refreshSeriesCache(tmdbId: number): Promise<boolean> {
 interface StaleSeriesRow {
   tmdb_id: number;
   title: string;
-  status: string | null;
-  last_fetched_at: string;
 }
 
 /**
- * Refreshes `series_cache` for every series whose cache is stale under the
- * per-status policy in `staleMsForStatus` (a Returning Series after 6h, an
- * Ended/Canceled one only after 7 days, everything else after a day) — the
- * same freshness definition the detail page uses, so the cron never re-fetches
- * a series the detail page still considers fresh. Intended to be run from the
- * daily cron job and the background `after()` refresh on app launch. The SQL
- * pre-filter drops anything refreshed within `MIN_STALE_MS`; the exact
- * per-status threshold is then applied in JS. Series are refreshed
+ * Refreshes `series_cache` for every currently-airing ("Returning Series")
+ * series whose cache is stale under the shared `staleMsForStatus` policy (6h
+ * for a Returning Series). Intended to be run from the daily cron job and the
+ * background `after()` refresh on app launch. Ended/Canceled and other series
+ * are not swept here — they change rarely and are refreshed on demand by the
+ * detail page's own `after()` refresh when visited. Series are refreshed
  * sequentially, not in parallel, to respect TMDB rate limits; one failing
  * series is logged and skipped rather than aborting the whole batch.
  */
@@ -357,28 +350,24 @@ export async function refreshStaleSeries(): Promise<{
   skipped: number;
 }> {
   const admin = createAdminClient();
-  const now = Date.now();
-  const coarseCutoff = new Date(now - MIN_STALE_MS).toISOString();
+  const cutoff = new Date(Date.now() - staleMsForStatus('Returning Series')).toISOString();
 
-  const { data: candidates, error: staleSeriesError } = await admin
+  const { data: staleSeries, error: staleSeriesError } = await admin
     .from('series_cache')
-    .select('tmdb_id, title, status, last_fetched_at')
-    .lt('last_fetched_at', coarseCutoff)
+    .select('tmdb_id, title')
+    .eq('status', 'Returning Series')
+    .lt('last_fetched_at', cutoff)
     .overrideTypes<StaleSeriesRow[], { merge: false }>();
 
   if (staleSeriesError) {
     throw new Error(`Could not load stale series: ${staleSeriesError.message}`);
   }
 
-  const staleSeries = (candidates ?? []).filter(
-    (row) => now - new Date(row.last_fetched_at).getTime() > staleMsForStatus(row.status),
-  );
-
   let refreshed = 0;
   let failed = 0;
   let skipped = 0;
 
-  for (const row of staleSeries) {
+  for (const row of staleSeries ?? []) {
     try {
       const found = await refreshSeriesCache(row.tmdb_id);
       if (found) {
