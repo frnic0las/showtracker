@@ -27,6 +27,8 @@ function FinishedIcon() {
   );
 }
 
+export const maxDuration = 60;
+
 /**
  * Series detail page: backdrop hero, a "Next up" continue-watching card (or a
  * "finished" state once every episode is watched), and one accordion per
