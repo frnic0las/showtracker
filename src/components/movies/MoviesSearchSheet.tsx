@@ -4,7 +4,9 @@ import Image from 'next/image';
 import { useCallback, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { addMovie } from '@/actions/movies';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { SearchBar } from '@/components/ui/SearchBar';
+import { isFutureDate } from '@/lib/dates';
 import { posterUrl } from '@/lib/tmdb/images';
 import type { TmdbSearchResponse } from '@/lib/tmdb/types';
 import type { MovieAddStatus, MovieSearchResult } from '@/types/movies';
@@ -29,6 +31,7 @@ export function MoviesSearchSheet({ addedIds }: MoviesSearchSheetProps) {
   const [added, setAdded] = useState<Set<number>>(() => new Set(addedIds));
   const [pendingId, setPendingId] = useState<number | null>(null);
   const [addError, setAddError] = useState<string | null>(null);
+  const [confirmItem, setConfirmItem] = useState<MovieSearchResult | null>(null);
   const controller = useRef<AbortController | null>(null);
 
   const runSearch = useCallback(async (query: string) => {
@@ -60,6 +63,7 @@ export function MoviesSearchSheet({ addedIds }: MoviesSearchSheetProps) {
         title: item.title ?? item.name ?? 'Untitled',
         posterPath: item.poster_path,
         year: item.release_date ? item.release_date.slice(0, 4) : null,
+        releaseDate: item.release_date ?? null,
       }));
 
       setResults(mapped);
@@ -86,6 +90,24 @@ export function MoviesSearchSheet({ addedIds }: MoviesSearchSheetProps) {
     } else {
       setAddError(result.error);
     }
+  }
+
+  // Adding a movie straight to Watched confirms first when its release date is
+  // strictly in the future; the Watchlist path never prompts.
+  function handleWatchedAdd(item: MovieSearchResult) {
+    if (added.has(item.tmdbId) || pendingId !== null) return;
+    if (isFutureDate(item.releaseDate)) {
+      setAddError(null);
+      setConfirmItem(item);
+      return;
+    }
+    handleAdd(item, 'watched');
+  }
+
+  function handleConfirmWatched() {
+    const item = confirmItem;
+    setConfirmItem(null);
+    if (item) handleAdd(item, 'watched');
   }
 
   return (
@@ -163,7 +185,7 @@ export function MoviesSearchSheet({ addedIds }: MoviesSearchSheetProps) {
                       </button>
                       <button
                         type="button"
-                        onClick={() => handleAdd(item, 'watched')}
+                        onClick={() => handleWatchedAdd(item)}
                         disabled={pendingId !== null}
                         className="min-h-11 rounded-full bg-accent-green px-4 text-[13px] font-semibold text-white"
                       >
@@ -177,6 +199,15 @@ export function MoviesSearchSheet({ addedIds }: MoviesSearchSheetProps) {
           })}
         </ul>
       ) : null}
+
+      <ConfirmDialog
+        open={confirmItem !== null}
+        title="Not released yet"
+        message="This movie hasn't been released yet. Mark it as watched anyway?"
+        confirmLabel="Mark watched"
+        onConfirm={handleConfirmWatched}
+        onCancel={() => setConfirmItem(null)}
+      />
     </div>
   );
 }

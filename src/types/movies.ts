@@ -10,6 +10,8 @@ export interface MovieSearchResult {
   title: string;
   posterPath: string | null;
   year: string | null;
+  /** Full `YYYY-MM-DD` release date; a strictly-future date confirms before marking watched. */
+  releaseDate: string | null;
 }
 
 /** Where a movie is added to on the current user's list. */
@@ -30,6 +32,8 @@ export interface UserMovie {
   title: string;
   posterPath: string | null;
   year: string | null;
+  /** Full `YYYY-MM-DD` release date; a strictly-future date confirms before marking watched. */
+  releaseDate: string | null;
   watched: boolean;
 }
 

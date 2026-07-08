@@ -4,7 +4,9 @@ import Image from 'next/image';
 import { useOptimistic, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { MovieActionSheet } from '@/components/movies/MovieActionSheet';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { toggleMovieWatched } from '@/actions/movies';
+import { isFutureDate } from '@/lib/dates';
 import { posterUrl } from '@/lib/tmdb/images';
 import type { UserMovie } from '@/types/movies';
 
@@ -43,7 +45,7 @@ function CheckIcon() {
  * above the dimmed backdrop (the iOS "peek") so it's clear which movie is being
  * acted on.
  */
-export function MovieCard({ tmdbId, title, posterPath, year, watched }: UserMovie) {
+export function MovieCard({ tmdbId, title, posterPath, year, releaseDate, watched }: UserMovie) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [optimisticWatched, setOptimisticWatched] = useOptimistic(
@@ -51,18 +53,32 @@ export function MovieCard({ tmdbId, title, posterPath, year, watched }: UserMovi
     (_current, next: boolean) => next,
   );
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pressStart = useRef<{ x: number; y: number } | null>(null);
   const poster = posterUrl(posterPath, 'w185');
 
-  function handleToggle() {
+  function applyToggle(next: boolean) {
     startTransition(async () => {
-      setOptimisticWatched(!optimisticWatched);
+      setOptimisticWatched(next);
       const result = await toggleMovieWatched(tmdbId);
       if (!result.ok) {
         router.refresh();
       }
     });
+  }
+
+  function handleToggle() {
+    if (!optimisticWatched && isFutureDate(releaseDate)) {
+      setConfirmOpen(true);
+      return;
+    }
+    applyToggle(!optimisticWatched);
+  }
+
+  function handleConfirm() {
+    setConfirmOpen(false);
+    applyToggle(true);
   }
 
   function clearPress() {
@@ -131,8 +147,19 @@ export function MovieCard({ tmdbId, title, posterPath, year, watched }: UserMovi
         tmdbId={tmdbId}
         title={title}
         watched={optimisticWatched}
+        releaseDate={releaseDate}
         open={sheetOpen}
         onClose={() => setSheetOpen(false)}
+      />
+
+      <ConfirmDialog
+        open={confirmOpen}
+        title="Not released yet"
+        message="This movie hasn't been released yet. Mark it as watched anyway?"
+        confirmLabel="Mark watched"
+        onConfirm={handleConfirm}
+        onCancel={() => setConfirmOpen(false)}
+        pending={isPending}
       />
     </div>
   );

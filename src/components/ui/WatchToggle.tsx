@@ -4,7 +4,7 @@ import { useOptimistic, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { toggleEpisodeWatched } from '@/actions/series';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
-import { isFutureAirDate } from '@/lib/dates';
+import { isFutureDate } from '@/lib/dates';
 
 interface WatchToggleProps {
   tmdbSeriesId: number;
@@ -69,7 +69,7 @@ export function WatchToggle({
   }
 
   function handleToggle() {
-    if (!optimisticWatched && isFutureAirDate(airDate)) {
+    if (!optimisticWatched && isFutureDate(airDate)) {
       setConfirmOpen(true);
       return;
     }

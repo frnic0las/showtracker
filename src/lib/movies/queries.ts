@@ -117,6 +117,7 @@ export async function getUserMovies(
       title: meta.title,
       posterPath: meta.poster_path,
       year: meta.release_date ? meta.release_date.slice(0, 4) : null,
+      releaseDate: meta.release_date,
       watched: row.watched,
     };
 
