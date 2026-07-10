@@ -7,15 +7,23 @@
 import { createClient } from '@/lib/supabase/server';
 import type { UserStats } from '@/types/stats';
 
+interface WatchTimeStatsRpcRow {
+  series_minutes: number;
+  movies_minutes: number;
+}
+
 /**
  * Returns the current user's tracked series count, total episodes watched,
- * and total movies watched. Each count is a head-only query against its
- * table, run in parallel since the three counts are independent.
+ * total movies watched, and total minutes watched. The counts are head-only
+ * queries against their tables; watch-time minutes are aggregated server-side
+ * by the `get_watch_time_stats` RPC (migration 008) to avoid transferring
+ * every watched row past PostgREST's 1000-row cap. All four run in parallel
+ * since they are independent.
  */
 export async function getUserStats(userId: string): Promise<UserStats> {
   const supabase = await createClient();
 
-  const [seriesResult, episodesResult, moviesResult] = await Promise.all([
+  const [seriesResult, episodesResult, moviesResult, watchTimeResult] = await Promise.all([
     supabase
       .from('user_series')
       .select('id', { count: 'exact', head: true })
@@ -29,6 +37,7 @@ export async function getUserStats(userId: string): Promise<UserStats> {
       .select('id', { count: 'exact', head: true })
       .eq('user_id', userId)
       .eq('watched', true),
+    supabase.rpc('get_watch_time_stats', { p_user_id: userId }),
   ]);
 
   if (seriesResult.error) {
@@ -40,10 +49,18 @@ export async function getUserStats(userId: string): Promise<UserStats> {
   if (moviesResult.error) {
     throw new Error(`Could not load your stats: ${moviesResult.error.message}`);
   }
+  if (watchTimeResult.error) {
+    throw new Error(`Could not load your stats: ${watchTimeResult.error.message}`);
+  }
+
+  const watchTimeRows = (watchTimeResult.data ?? []) as WatchTimeStatsRpcRow[];
+  const watchTime = watchTimeRows[0];
 
   return {
     seriesCount: seriesResult.count ?? 0,
     episodesWatched: episodesResult.count ?? 0,
     moviesWatched: moviesResult.count ?? 0,
+    seriesMinutes: watchTime?.series_minutes ?? 0,
+    moviesMinutes: watchTime?.movies_minutes ?? 0,
   };
 }

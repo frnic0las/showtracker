@@ -8,4 +8,8 @@ export interface UserStats {
   seriesCount: number;
   episodesWatched: number;
   moviesWatched: number;
+  /** Total minutes watched across all tracked series episodes. */
+  seriesMinutes: number;
+  /** Total minutes watched across all watched movies. */
+  moviesMinutes: number;
 }

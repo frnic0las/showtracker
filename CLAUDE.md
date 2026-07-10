@@ -35,6 +35,14 @@ Repository: `frnic0las/showtracker` — License: AGPL-3.0
 - TMDB API key in `TMDB_API_KEY` env var — NEVER exposed to client
 - All TMDB calls go through Route Handlers to protect the API key
 
+## Database Conventions
+
+- Migrations are numbered sequentially in `supabase/migrations/`
+- RPC functions: ALWAYS `DROP FUNCTION IF EXISTS` then `CREATE FUNCTION` — never bare `CREATE OR REPLACE FUNCTION`. Postgres rejects a `CREATE OR REPLACE` that changes the return type or OUT parameters (`ERROR: cannot change return type of existing function`), so a signature change fails the migration. Dropping first makes it work. See migration 007, which adds `series_status` to the return table.
+- RPC functions use `language sql`, `stable`, `security invoker`, `set search_path = public`
+- Unbounded aggregations (SUM, COUNT over JOINs) go in RPC functions, not PostgREST queries — the 1000-row default cap silently truncates results
+- The `set_updated_at` trigger on `user_series` handles `updated_at` automatically — don't set it manually in application code
+
 ## Project Structure
 
 ```
