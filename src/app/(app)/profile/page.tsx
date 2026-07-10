@@ -31,7 +31,7 @@ export default async function ProfilePage() {
           <h2 className="pb-2 pl-1 text-[13px] uppercase tracking-wide text-text-secondary">
             Account
           </h2>
-          <div className="overflow-hidden rounded-md bg-bg-elevated">
+          <div className="overflow-hidden rounded-md bg-bg-secondary">
             <div className="flex min-h-11 items-center justify-between gap-3 px-4 py-2">
               <span className="text-[17px] text-text-primary">Email</span>
               <span className="truncate text-[15px] text-text-secondary">{user.email}</span>
@@ -45,7 +45,7 @@ export default async function ProfilePage() {
           <h2 className="pb-2 pl-1 text-[13px] uppercase tracking-wide text-text-secondary">
             About
           </h2>
-          <div className="overflow-hidden rounded-md bg-bg-elevated">
+          <div className="overflow-hidden rounded-md bg-bg-secondary">
             <div className="flex min-h-11 items-center justify-between gap-3 px-4 py-2">
               <span className="text-[17px] text-text-primary">Version</span>
               <span className="text-[15px] text-text-secondary">{pkg.version}</span>
