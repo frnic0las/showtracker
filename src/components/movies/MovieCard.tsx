@@ -1,6 +1,7 @@
 'use client';
 
 import Image from 'next/image';
+import Link from 'next/link';
 import { useOptimistic, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { MovieActionSheet } from '@/components/movies/MovieActionSheet';
@@ -43,7 +44,10 @@ function CheckIcon() {
  * Touch-and-holding the poster (~500ms) opens a contextual `MovieActionSheet`
  * with the labelled watched toggle and a Remove action; the pressed tile lifts
  * above the dimmed backdrop (the iOS "peek") so it's clear which movie is being
- * acted on.
+ * acted on. Tapping the poster otherwise navigates to the movie detail page:
+ * the link is an overlay filling the tile, sitting under the watched toggle so
+ * that button keeps its own tap, and a click following a completed long press
+ * (which already opened the sheet) is suppressed.
  */
 export function MovieCard({ tmdbId, title, posterPath, year, releaseDate, watched }: UserMovie) {
   const router = useRouter();
@@ -56,6 +60,9 @@ export function MovieCard({ tmdbId, title, posterPath, year, releaseDate, watche
   const [confirmOpen, setConfirmOpen] = useState(false);
   const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pressStart = useRef<{ x: number; y: number } | null>(null);
+  // Set when the long-press timer fires (opening the sheet); the click that
+  // follows the ending pointerup must not also navigate the link.
+  const pressFired = useRef(false);
   const poster = posterUrl(posterPath, 'w185');
 
   function applyToggle(next: boolean) {
@@ -93,9 +100,11 @@ export function MovieCard({ tmdbId, title, posterPath, year, releaseDate, watche
     // Let the watched toggle handle its own taps — a press there must not open
     // the sheet.
     if ((event.target as HTMLElement).closest('[data-movie-toggle]')) return;
+    pressFired.current = false;
     pressStart.current = { x: event.clientX, y: event.clientY };
     pressTimer.current = setTimeout(() => {
       pressTimer.current = null;
+      pressFired.current = true;
       navigator.vibrate?.(10);
       setSheetOpen(true);
     }, LONG_PRESS_MS);
@@ -106,6 +115,15 @@ export function MovieCard({ tmdbId, title, posterPath, year, releaseDate, watche
     const dx = event.clientX - pressStart.current.x;
     const dy = event.clientY - pressStart.current.y;
     if (Math.hypot(dx, dy) > MOVE_SLOP) clearPress();
+  }
+
+  function handleLinkClick(event: React.MouseEvent) {
+    // The pointerup ending a completed long press fires a click right after —
+    // the sheet already opened, so suppress the navigation it would trigger.
+    if (pressFired.current) {
+      event.preventDefault();
+      pressFired.current = false;
+    }
   }
 
   return (
@@ -123,6 +141,13 @@ export function MovieCard({ tmdbId, title, posterPath, year, releaseDate, watche
         }`}
       >
         {poster ? <Image src={poster} alt="" fill sizes="33vw" className="object-cover" /> : null}
+        <Link
+          href={`/movies/${tmdbId}`}
+          prefetch={false}
+          onClick={handleLinkClick}
+          aria-label={title}
+          className="absolute inset-0 z-[1] [-webkit-touch-callout:none]"
+        />
         <button
           type="button"
           data-movie-toggle
@@ -130,7 +155,7 @@ export function MovieCard({ tmdbId, title, posterPath, year, releaseDate, watche
           disabled={isPending}
           aria-pressed={optimisticWatched}
           aria-label={optimisticWatched ? `Mark ${title} as unwatched` : `Mark ${title} as watched`}
-          className="absolute right-1 top-1 flex h-11 w-11 items-center justify-center"
+          className="absolute right-1 top-1 z-[2] flex h-11 w-11 items-center justify-center"
         >
           <span
             data-watched={optimisticWatched ? '' : undefined}

@@ -89,6 +89,7 @@ export async function addMovie(tmdbId: number, status: MovieAddStatus): Promise<
     return { ok: false, error: 'Could not add movie to your list. Please try again.' };
   }
 
+  revalidatePath(`/movies/${details.id}`);
   revalidatePath('/movies');
   return { ok: true };
 }
@@ -126,6 +127,7 @@ export async function removeMovie(tmdbId: number): Promise<RemoveMovieResult> {
     return { ok: false, error: 'Could not remove the movie. Please try again.' };
   }
 
+  revalidatePath(`/movies/${tmdbId}`);
   revalidatePath('/movies');
   revalidatePath('/movies/archive');
   return { ok: true };
@@ -178,6 +180,7 @@ export async function toggleMovieWatched(tmdbId: number): Promise<ToggleMovieRes
     return { ok: false, error: 'Could not update movie. Please try again.' };
   }
 
+  revalidatePath(`/movies/${tmdbId}`);
   revalidatePath('/movies');
   return { ok: true };
 }

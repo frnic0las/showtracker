@@ -48,6 +48,42 @@ export function daysUntil(dateStr: string, today: string = todayIsoDate()): numb
   return Math.round((parseUtcDate(dateStr) - parseUtcDate(today)) / DAY_MS);
 }
 
+/** Formats a `YYYY-MM-DD` string as e.g. `Feb 7, 2025` (UTC, no zone shift). */
+export function formatIsoDate(dateStr: string): string {
+  return new Date(parseUtcDate(dateStr)).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    timeZone: 'UTC',
+  });
+}
+
+/**
+ * Formats a `timestamptz` ISO string (`watched_at`, `created_at`) as e.g.
+ * `Feb 7, 2025`, in `timeZone` so the calendar day matches the viewer's — an
+ * instant late in the day shifts to the next or previous date between zones.
+ * Falls back to UTC when `timeZone` is falsy or invalid, the same guard as
+ * `localTodayIsoDate`. Use `formatIsoDate` instead for plain `YYYY-MM-DD`
+ * dates, which carry no time and must not be zone-shifted at all.
+ */
+export function formatTimestampDate(iso: string, timeZone?: string): string {
+  const options: Intl.DateTimeFormatOptions = {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  };
+  const date = new Date(iso);
+
+  if (timeZone) {
+    try {
+      return date.toLocaleDateString('en-US', { ...options, timeZone });
+    } catch {
+      // Fall through to UTC on an invalid zone.
+    }
+  }
+  return date.toLocaleDateString('en-US', { ...options, timeZone: 'UTC' });
+}
+
 /**
  * Whether `date` (a `YYYY-MM-DD` string — an episode air date or a movie
  * release date) is strictly after the browser's local today, resolved via
