@@ -63,6 +63,32 @@ export interface TmdbSeasonDetails {
   episodes: TmdbEpisode[];
 }
 
+/** A billed cast member, as returned in the `credits` append. */
+export interface TmdbCastMember {
+  id: number;
+  credit_id: string;
+  name: string;
+  /** Empty string when TMDB has no character name for the credit. */
+  character: string;
+  profile_path: string | null;
+}
+
+/** A crew credit; `job` carries the role (`Director`, `Screenplay`, …). */
+export interface TmdbCrewMember {
+  id: number;
+  name: string;
+  job: string;
+}
+
+/**
+ * Credits block returned by `append_to_response=credits`. `cast` comes back in
+ * billing order, most prominent first.
+ */
+export interface TmdbCredits {
+  cast: TmdbCastMember[];
+  crew: TmdbCrewMember[];
+}
+
 export interface TmdbMovieDetails {
   id: number;
   title: string;
@@ -72,6 +98,8 @@ export interface TmdbMovieDetails {
   release_date: string | null;
   runtime: number | null;
   status: string;
+  /** Present only when details were requested with `credits: true`. */
+  credits?: TmdbCredits;
 }
 
 /**

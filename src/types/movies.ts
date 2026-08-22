@@ -45,6 +45,54 @@ export interface UserMovies {
   watchlist: UserMovie[];
 }
 
+/** A billed cast member on the movie detail page. */
+export interface MovieCastMember {
+  /**
+   * TMDB credit id — unique per cast entry, the key for the cast rail (a person
+   * can have several entries).
+   */
+  creditId: string;
+  name: string;
+  /** `null` when TMDB has no character name for the credit. */
+  character: string | null;
+  profilePath: string | null;
+}
+
+/** The current user's tracking state for a movie, when they track it. */
+export interface MovieTracking {
+  watched: boolean;
+  /** `null` on a watched row imported without a date. */
+  watchedAt: string | null;
+  /** When the movie was added to the user's list (`user_movies.created_at`). */
+  addedAt: string;
+}
+
+/**
+ * Everything the movie detail page renders: live TMDB metadata and credits,
+ * plus the current user's tracking state. TMDB is the source of truth for the
+ * metadata — the page also serves movies the user does not track and that are
+ * absent from `movies_cache`.
+ */
+export interface MovieDetail {
+  tmdbId: number;
+  title: string;
+  overview: string | null;
+  posterPath: string | null;
+  backdropPath: string | null;
+  /** Full `YYYY-MM-DD` release date; a strictly-future date confirms before marking watched. */
+  releaseDate: string | null;
+  /** Runtime in minutes. */
+  runtime: number | null;
+  /** Credited directors, in TMDB order; usually one, empty when uncredited. */
+  directors: string[];
+  /** Credited writers (screenplay, story), deduplicated by name. */
+  writers: string[];
+  /** Top billed cast, in billing order. */
+  cast: MovieCastMember[];
+  /** `null` when the movie is not on the user's list. */
+  tracking: MovieTracking | null;
+}
+
 /**
  * How a movie section is ordered, carried in the `?sort=` query param. The two
  * timeline keys are section-specific so a value is self-describing regardless
