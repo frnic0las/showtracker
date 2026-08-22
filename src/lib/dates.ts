@@ -48,6 +48,16 @@ export function daysUntil(dateStr: string, today: string = todayIsoDate()): numb
   return Math.round((parseUtcDate(dateStr) - parseUtcDate(today)) / DAY_MS);
 }
 
+/** Formats a `YYYY-MM-DD` string as e.g. `Feb 7, 2025` (UTC, no zone shift). */
+export function formatIsoDate(dateStr: string): string {
+  return new Date(parseUtcDate(dateStr)).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    timeZone: 'UTC',
+  });
+}
+
 /**
  * Whether `date` (a `YYYY-MM-DD` string — an episode air date or a movie
  * release date) is strictly after the browser's local today, resolved via

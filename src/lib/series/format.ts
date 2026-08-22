@@ -4,16 +4,11 @@
  * labels the detail UI renders.
  */
 
-import { daysUntil, parseUtcDate } from '@/lib/dates';
+import { daysUntil, formatIsoDate } from '@/lib/dates';
 
 /** Formats a `YYYY-MM-DD` string as e.g. `Feb 7, 2025` (UTC, no zone shift). */
 function formatDate(dateStr: string): string {
-  return new Date(parseUtcDate(dateStr)).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    timeZone: 'UTC',
-  });
+  return formatIsoDate(dateStr);
 }
 
 /**

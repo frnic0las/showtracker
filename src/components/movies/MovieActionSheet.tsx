@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import { removeMovie, toggleMovieWatched } from '@/actions/movies';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { isFutureDate } from '@/lib/dates';
@@ -12,8 +13,31 @@ interface MovieActionSheetProps {
   watched: boolean;
   /** Movie release date; a strictly-future date confirms before marking watched. */
   releaseDate: string | null;
-  open: boolean;
-  onClose: () => void;
+  /**
+   * Controlled mode (`MovieCard`'s long-press): the caller owns `open` and is
+   * notified via `onClose`. Omit both and set `trigger` instead for the hero's
+   * self-contained `•••` button, which owns its own open state.
+   */
+  open?: boolean;
+  onClose?: () => void;
+  /**
+   * Renders its own translucent `•••` trigger button and owns its own open
+   * state, mirroring how `SeriesActionSheet` exposes its button in
+   * `SeriesHero`, instead of being externally controlled via `open`/`onClose`.
+   */
+  trigger?: boolean;
+  /** After a successful remove, navigate to `/movies` — the detail page's behavior. */
+  redirectOnRemove?: boolean;
+}
+
+function MoreIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <circle cx="5" cy="12" r="2" />
+      <circle cx="12" cy="12" r="2" />
+      <circle cx="19" cy="12" r="2" />
+    </svg>
+  );
 }
 
 function CheckIcon() {
@@ -71,24 +95,33 @@ function TrashIcon() {
 }
 
 /**
- * The contextual action sheet for a movie poster, opened by long-pressing the
- * tile in `MovieCard`, plus the destructive Remove confirmation alert — one
- * client island per card. "Mark as watched / unwatched" is reversible and
- * applies immediately via `toggleMovieWatched` (the labelled twin of the
- * poster checkmark); Remove is guarded by the shared `ConfirmDialog` before
- * `removeMovie` and, on success, the tile drops out of the grid on
- * revalidation — no navigation, since movies have no detail page. On any error
- * the overlay stays open and surfaces the message. Structurally the twin of
- * `SeriesActionSheet`.
+ * The contextual action sheet for a movie, plus the destructive Remove
+ * confirmation alert — one client island. In controlled mode it's opened by
+ * long-pressing the tile in `MovieCard`; with `trigger` it renders and owns
+ * its own `•••` button, as used in the hero on the detail page. "Mark as
+ * watched / unwatched" is reversible and applies immediately via
+ * `toggleMovieWatched` (the labelled twin of the poster checkmark); Remove is
+ * guarded by the shared `ConfirmDialog` before `removeMovie`. On success the
+ * tile drops out of the grid on revalidation, or — with `redirectOnRemove` —
+ * the detail page navigates back to `/movies`, matching `SeriesActionSheet`.
+ * On any error the overlay stays open and surfaces the message. Structurally
+ * the twin of `SeriesActionSheet`.
  */
 export function MovieActionSheet({
   tmdbId,
   title,
   watched,
   releaseDate,
-  open,
-  onClose,
+  open: openProp,
+  onClose: onCloseProp,
+  trigger = false,
+  redirectOnRemove = false,
 }: MovieActionSheetProps) {
+  const router = useRouter();
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = trigger ? internalOpen : (openProp ?? false);
+  const onClose = trigger ? () => setInternalOpen(false) : (onCloseProp ?? (() => {}));
+
   const [mounted, setMounted] = useState(false);
   const [shown, setShown] = useState(false);
   const [watchConfirmOpen, setWatchConfirmOpen] = useState(false);
@@ -193,6 +226,9 @@ export function MovieActionSheet({
         return;
       }
       setRemoveConfirmOpen(false);
+      if (redirectOnRemove) {
+        router.push('/movies');
+      }
     });
   }
 
@@ -201,6 +237,21 @@ export function MovieActionSheet({
   // unmount the dialog with it.
   return (
     <>
+      {trigger ? (
+        <button
+          type="button"
+          onClick={() => {
+            setError(null);
+            setInternalOpen(true);
+          }}
+          aria-label={`Actions for ${title}`}
+          aria-haspopup="menu"
+          className="absolute right-3 top-2 z-[3] flex h-11 w-11 items-center justify-center rounded-full bg-bg-primary/55 text-text-primary backdrop-blur-md"
+        >
+          <MoreIcon />
+        </button>
+      ) : null}
+
       {mounted ? (
         <div
           className={`fixed inset-0 z-50 flex flex-col items-center justify-end bg-black/40 transition-opacity duration-300 ${

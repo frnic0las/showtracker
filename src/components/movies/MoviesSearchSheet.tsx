@@ -1,6 +1,7 @@
 'use client';
 
 import Image from 'next/image';
+import Link from 'next/link';
 import { useCallback, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { addMovie } from '@/actions/movies';
@@ -146,26 +147,32 @@ export function MoviesSearchSheet({ addedIds }: MoviesSearchSheetProps) {
             return (
               <li key={item.tmdbId}>
                 <div className="flex w-full items-center gap-3 px-4 py-2 text-left">
-                  {poster ? (
-                    <Image
-                      src={poster}
-                      alt=""
-                      width={60}
-                      height={90}
-                      className="shrink-0 rounded-sm object-cover"
-                    />
-                  ) : (
-                    <div className="h-[90px] w-[60px] shrink-0 rounded-sm bg-bg-secondary" />
-                  )}
+                  <Link
+                    href={`/movies/${item.tmdbId}`}
+                    prefetch={false}
+                    className="flex min-w-0 flex-1 items-center gap-3"
+                  >
+                    {poster ? (
+                      <Image
+                        src={poster}
+                        alt=""
+                        width={60}
+                        height={90}
+                        className="shrink-0 rounded-sm object-cover"
+                      />
+                    ) : (
+                      <div className="h-[90px] w-[60px] shrink-0 rounded-sm bg-bg-secondary" />
+                    )}
 
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-[17px] font-semibold text-text-primary">
-                      {item.title}
-                    </p>
-                    {item.year ? (
-                      <p className="text-[13px] text-text-secondary">{item.year}</p>
-                    ) : null}
-                  </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[17px] font-semibold text-text-primary">
+                        {item.title}
+                      </p>
+                      {item.year ? (
+                        <p className="text-[13px] text-text-secondary">{item.year}</p>
+                      ) : null}
+                    </div>
+                  </Link>
 
                   {isAdded ? (
                     <span className="shrink-0 text-[15px] font-semibold text-accent-green">
