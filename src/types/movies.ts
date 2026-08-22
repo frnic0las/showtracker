@@ -47,8 +47,11 @@ export interface UserMovies {
 
 /** A billed cast member on the movie detail page. */
 export interface MovieCastMember {
-  /** TMDB person id — the stable key for the cast rail. */
-  id: number;
+  /**
+   * TMDB credit id — unique per cast entry, the key for the cast rail (a person
+   * can have several entries).
+   */
+  creditId: string;
   name: string;
   /** `null` when TMDB has no character name for the credit. */
   character: string | null;

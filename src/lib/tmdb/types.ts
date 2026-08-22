@@ -66,6 +66,7 @@ export interface TmdbSeasonDetails {
 /** A billed cast member, as returned in the `credits` append. */
 export interface TmdbCastMember {
   id: number;
+  credit_id: string;
   name: string;
   /** Empty string when TMDB has no character name for the credit. */
   character: string;

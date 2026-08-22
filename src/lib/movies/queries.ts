@@ -211,7 +211,7 @@ export async function getMovieDetailForUser(
     directors: crew.filter((member) => member.job === 'Director').map((member) => member.name),
     writers: [...writers],
     cast: (details.credits?.cast ?? []).slice(0, MAX_CAST).map((member) => ({
-      id: member.id,
+      creditId: member.credit_id,
       name: member.name,
       character: member.character || null,
       profilePath: member.profile_path,
