@@ -1,8 +1,10 @@
+import { cookies } from 'next/headers';
 import { notFound, redirect } from 'next/navigation';
 import { CastRail } from '@/components/movies/CastRail';
 import { MovieAddActions } from '@/components/movies/MovieAddActions';
 import { MovieHero } from '@/components/movies/MovieHero';
 import { MovieStateCard } from '@/components/movies/MovieStateCard';
+import { formatTimestampDate, TZ_COOKIE } from '@/lib/dates';
 import { formatMovieDate } from '@/lib/movies/format';
 import { getMovieDetailForUser } from '@/lib/movies/queries';
 import { createClient } from '@/lib/supabase/server';
@@ -42,6 +44,21 @@ export default async function MovieDetailPage({
     notFound();
   }
 
+  // `watched_at` and `created_at` are timestamptz, so the calendar day they
+  // fall on depends on the viewer's zone — resolved here from the cookie
+  // `TimezoneSync` sets, as the Series page does for its own date math.
+  const cookieStore = await cookies();
+  const timeZone = cookieStore.get(TZ_COOKIE)?.value;
+
+  let stateSubtitle: string | null = null;
+  if (movie.tracking) {
+    stateSubtitle = movie.tracking.watched
+      ? movie.tracking.watchedAt
+        ? `on ${formatTimestampDate(movie.tracking.watchedAt, timeZone)}`
+        : null
+      : `Added ${formatTimestampDate(movie.tracking.addedAt, timeZone)}`;
+  }
+
   const detailsRows: { key: string; value: string }[] = [];
   if (movie.directors.length > 0) {
     detailsRows.push({ key: 'Director', value: movie.directors.join(', ') });
@@ -72,6 +89,7 @@ export default async function MovieDetailPage({
           tmdbId={movie.tmdbId}
           title={movie.title}
           tracking={movie.tracking}
+          subtitle={stateSubtitle}
           releaseDate={movie.releaseDate}
         />
       )}

@@ -5,13 +5,19 @@ import { useRouter } from 'next/navigation';
 import { toggleMovieWatched } from '@/actions/movies';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { isFutureDate } from '@/lib/dates';
-import { formatMovieDate } from '@/lib/movies/format';
 import type { MovieTracking } from '@/types/movies';
 
 interface MovieStateCardProps {
   tmdbId: number;
   title: string;
   tracking: MovieTracking;
+  /**
+   * The card's muted second line, already formatted by the page (`on <date>`
+   * or `Added <date>`) — the dates are `timestamptz` values and are rendered
+   * in the viewer's timezone, which only the server component can resolve.
+   * `null` on a watched row imported without a date, which shows no subtitle.
+   */
+  subtitle: string | null;
   /** Full `YYYY-MM-DD` release date; a strictly-future date confirms before marking watched. */
   releaseDate: string | null;
 }
@@ -62,7 +68,13 @@ function CheckIcon() {
  * `toggleMovieWatched`. `aria-live="polite"` on the card announces the state
  * change once the pill (and its own label) disappears.
  */
-export function MovieStateCard({ tmdbId, title, tracking, releaseDate }: MovieStateCardProps) {
+export function MovieStateCard({
+  tmdbId,
+  title,
+  tracking,
+  subtitle,
+  releaseDate,
+}: MovieStateCardProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -93,12 +105,6 @@ export function MovieStateCard({ tmdbId, title, tracking, releaseDate }: MovieSt
     setConfirmOpen(false);
     runToggle();
   }
-
-  const subtitle = tracking.watched
-    ? tracking.watchedAt
-      ? `on ${formatMovieDate(tracking.watchedAt)}`
-      : null
-    : `Added ${formatMovieDate(tracking.addedAt)}`;
 
   return (
     <div>
