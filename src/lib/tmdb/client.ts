@@ -94,9 +94,20 @@ export async function getSeasonDetails(
   return tmdbFetch<TmdbSeasonDetails>(`/tv/${id}/season/${seasonNumber}`);
 }
 
-/** Fetches movie details. */
-export async function getMovieDetails(id: string): Promise<TmdbMovieDetails> {
-  return tmdbFetch<TmdbMovieDetails>(`/movie/${id}`);
+/**
+ * Fetches movie details. Pass `credits: true` to append the cast and crew in
+ * the same request (`append_to_response=credits`) — it costs no extra round
+ * trip but roughly quadruples the payload, so callers that only need the
+ * cached metadata fields leave it off.
+ */
+export async function getMovieDetails(
+  id: string,
+  options: { credits?: boolean } = {},
+): Promise<TmdbMovieDetails> {
+  return tmdbFetch<TmdbMovieDetails>(
+    `/movie/${id}`,
+    options.credits ? { append_to_response: 'credits' } : {},
+  );
 }
 
 /**

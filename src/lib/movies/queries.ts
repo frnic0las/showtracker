@@ -1,13 +1,21 @@
 /**
- * Read-side query functions for the movies list. Reads go through the
- * RLS-scoped client (`createClient`) so a user only ever sees their own
- * `user_movies` rows. Cached TMDB metadata lives in `movies_cache`, which
+ * Read-side query functions for the movies list and detail page. Reads go
+ * through the RLS-scoped client (`createClient`) so a user only ever sees their
+ * own `user_movies` rows. Cached TMDB metadata lives in `movies_cache`, which
  * `user_movies.tmdb_id` references by value only (no FK), so the two reads are
- * joined in application code rather than via a PostgREST embed.
+ * joined in application code rather than via a PostgREST embed. The detail
+ * query is the exception — it reads TMDB live.
  */
 
 import { createClient } from '@/lib/supabase/server';
-import { DEFAULT_MOVIE_SORT, type MovieSort, type UserMovie, type UserMovies } from '@/types/movies';
+import { getMovieDetails, TmdbApiError } from '@/lib/tmdb/client';
+import {
+  DEFAULT_MOVIE_SORT,
+  type MovieDetail,
+  type MovieSort,
+  type UserMovie,
+  type UserMovies,
+} from '@/types/movies';
 
 interface UserMovieRow {
   tmdb_id: number;
@@ -135,5 +143,85 @@ export async function getUserMovies(
   return {
     watched: watched.map((entry) => entry.movie),
     watchlist: watchlist.map((entry) => entry.movie),
+  };
+}
+
+/** How many billed cast members the detail page shows, per the design. */
+const MAX_CAST = 10;
+
+/** Crew jobs rolled up into the detail page's "Writing" row. */
+const WRITING_JOBS = ['Screenplay', 'Writer', 'Story'];
+
+interface UserMovieTrackingRow {
+  watched: boolean;
+  watched_at: string | null;
+  created_at: string;
+}
+
+/**
+ * Returns the detail view for one movie: live TMDB metadata and credits merged
+ * with the current user's `user_movies` row. Deliberately bypasses
+ * `movies_cache` — the page must also render movies the user does not track
+ * (it exists to tell two same-titled films apart *before* one is added), which
+ * are typically absent from the cache, and credits are not cached at all.
+ * Returns `null` only when the movie does not exist on TMDB.
+ */
+export async function getMovieDetailForUser(
+  userId: string,
+  tmdbId: number,
+): Promise<MovieDetail | null> {
+  const supabase = await createClient();
+
+  const [details, { data: tracking, error: trackingError }] = await Promise.all([
+    getMovieDetails(String(tmdbId), { credits: true }).catch((error: unknown) => {
+      if (error instanceof TmdbApiError && error.status === 404) {
+        return null;
+      }
+      throw new Error('Could not load movie details from TMDB.', { cause: error });
+    }),
+    supabase
+      .from('user_movies')
+      .select('watched, watched_at, created_at')
+      .eq('user_id', userId)
+      .eq('tmdb_id', tmdbId)
+      .maybeSingle()
+      .overrideTypes<UserMovieTrackingRow, { merge: false }>(),
+  ]);
+
+  if (trackingError) {
+    throw new Error(`Could not load your movie status: ${trackingError.message}`);
+  }
+  if (!details) {
+    return null;
+  }
+
+  const crew = details.credits?.crew ?? [];
+  const writers = new Set(
+    crew.filter((member) => WRITING_JOBS.includes(member.job)).map((member) => member.name),
+  );
+
+  return {
+    tmdbId: details.id,
+    title: details.title,
+    overview: details.overview || null,
+    posterPath: details.poster_path,
+    backdropPath: details.backdrop_path,
+    releaseDate: details.release_date || null,
+    runtime: details.runtime,
+    directors: crew.filter((member) => member.job === 'Director').map((member) => member.name),
+    writers: [...writers],
+    cast: (details.credits?.cast ?? []).slice(0, MAX_CAST).map((member) => ({
+      id: member.id,
+      name: member.name,
+      character: member.character || null,
+      profilePath: member.profile_path,
+    })),
+    tracking: tracking
+      ? {
+          watched: tracking.watched,
+          watchedAt: tracking.watched_at,
+          addedAt: tracking.created_at,
+        }
+      : null,
   };
 }
